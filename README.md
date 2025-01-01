@@ -66,8 +66,9 @@ To run the script and the tests, make sure you have the following dependencies i
     - Create a new snapshot for the first instance.
     - If the snapshot limit is exceeded, it will delete the oldest snapshot.
 
-    *Sample Output*: \
+    *Sample Output*:
     ```bash
+    python job_script.py
     Fetching access token...
     Access Token: mock-access-token
 
@@ -86,3 +87,21 @@ To run the script and the tests, make sure you have the following dependencies i
     Checking if snapshot limit is exceeded for instance 123456789...
     Oldest snapshot deleted successfully!
     ````
+6. **Automating the Script (Optional)**: \
+    You can automate the script to run periodically by using cron jobs (on Linux/macOS) or Task Scheduler (on Windows).
+    xample: Automate with Cron (Linux/macOS)
+    To schedule the script to run daily at 2 AM, you can add a cron job:
+
+    1. Open the cron file:
+    ```bash
+    crontab -e
+    ````
+    2. Add the following line to schedule the script:
+    ```bash
+    0 2 * * * /usr/bin/yourenv/python /path/to/your/project/job_script.py
+    ```
+    This cron job will run the script every day at 2 AM.
+    Example: Automate with Task Scheduler (Windows)
+    1. Open Task Scheduler on Windows.
+    2. Create a new task that triggers the script at the desired time.
+    3. Set the program to run as python.exe and provide the full path to the `job_script.py` as the argument.
