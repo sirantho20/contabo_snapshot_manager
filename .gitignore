@@ -1,0 +1,5 @@
+# Ignore .env file containing sensitive credentials
+.env
+
+# Ignore any directories named 'env' (commonly used for virtual environments)
+env/
