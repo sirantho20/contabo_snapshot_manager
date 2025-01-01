@@ -37,11 +37,11 @@ To run the script and the tests, make sure you have the following dependencies i
     ```bash
     pip install -r requirements.txt
     ```
-    This command installs the required libraries: \
+    This command installs the required libraries: 
     - requests
     - python-dotenv
-3. **Create the .env File**:\
-    Create a .env file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: \
+3. **Create the .env File**: \
+    Create a .env file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: 
     ```bash
     CLIENT_ID=your-client-id
     CLIENT_SECRET=your-client-secret
@@ -49,4 +49,4 @@ To run the script and the tests, make sure you have the following dependencies i
     PASSWORD=your-password
     ````
     **NOTE**
-    The `.env` file is used to securely load your Contabo credentials without hardcoding them into the script.\
+    The `.env` file is used to securely load your Contabo credentials without hardcoding them into the script.
