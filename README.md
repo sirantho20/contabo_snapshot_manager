@@ -41,12 +41,48 @@ To run the script and the tests, make sure you have the following dependencies i
     - requests
     - python-dotenv
 3. **Create the .env File**: \
-    Create a .env file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: 
+    Create a `.env` file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: 
     ```bash
     CLIENT_ID=your-client-id
     CLIENT_SECRET=your-client-secret
     USERNAME=your-email@example.com
     PASSWORD=your-password
     ````
-    **NOTE**
     The `.env` file is used to securely load your Contabo credentials without hardcoding them into the script.
+
+4. **Verify the .env File**: \
+    Ensure that the `.env` file is correctly placed in the root of the project directory. The script will load the credentials from this file automatically.
+
+5. **Run the Script**: \
+    Now that everything is set up, you can run the snapshot management script (`job_script.py`).
+    To start the process, simply run:
+    ```bash
+    python job_script.py
+    ```
+    This will execute the following tasks:
+    - Fetch your access token using the credentials from the .env file.
+    - List the available instances from your Contabo account.
+    - Fetch the snapshots for the listed instances.
+    - Create a new snapshot for the first instance.
+    - If the snapshot limit is exceeded, it will delete the oldest snapshot.
+
+    ***Sample Output***: \
+    ```bash
+    Fetching access token...
+    Access Token: mock-access-token
+
+    Listing instances...
+    Instances:
+    Instance ID: 123456789, Display Name: Mock Instance 1
+    Instance ID: 987654321, Display Name: Mock Instance 2
+
+    Fetching snapshots for instance 123456789...
+    Snapshots:
+    Snapshot ID: snap12345, Created Date: 2025-01-01T11:44:40.436Z
+
+    Creating snapshot for instance 123456789 with name: snapshot-2025-01-01_21-21-38...
+    Snapshot snapshot-2025-01-01_21-21-38 created successfully!
+
+    Checking if snapshot limit is exceeded for instance 123456789...
+    Oldest snapshot deleted successfully!
+    ````
