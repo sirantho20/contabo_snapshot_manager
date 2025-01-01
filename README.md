@@ -49,4 +49,4 @@ To run the script and the tests, make sure you have the following dependencies i
     PASSWORD=your-password
     ````
     **NOTE**
-    The `.env file is used to securely load your Contabo credentials without hardcoding them into the script.\
+    The `.env` file is used to securely load your Contabo credentials without hardcoding them into the script.\
