@@ -32,11 +32,22 @@ To run the script and the tests, make sure you have the following dependencies i
    git clone https://github.com/yourusername/contabo-snapshot-manager.git
    cd contabo-snapshot-manager
 
-2. **Install Dependencies**:
+2. **Install Dependencies**: \
     Install the necessary Python libraries specified in the requirements.txt file by running:
     ```bash
     pip install -r requirements.txt
     ```
-    This command installs the required libraries:
+    This command installs the required libraries: \
     - requests
     - python-dotenv
+3. **Create the .env File**:\
+    Create a .env file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: \
+    ```bash
+    CLIENT_ID=your-client-id
+    CLIENT_SECRET=your-client-secret
+    USERNAME=your-email@example.com
+    PASSWORD=your-password
+    ````
+    [!NOTE]
+    Note: The .env file is used to securely load your Contabo credentials without hardcoding them into the script.\
+    
