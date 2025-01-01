@@ -106,9 +106,4 @@ To run the script and the tests, make sure you have the following dependencies i
     2. Create a new task that triggers the script at the desired time.
     3. Set the program to run as python.exe and provide the full path to the `job_script.py` as the argument.
 
-    <style>.pp-88A7B8W7888JL{text-align:center;border:none;border-radius:0.25rem;min-width:11.625rem;padding:0 2rem;height:2.625rem;font-weight:bold;background-color:#FFD140;color:#000000;font-family:"Helvetica Neue",Arial,sans-serif;font-size:1rem;line-height:1.25rem;cursor:pointer;}</style>
-<form action="https://www.paypal.com/ncp/payment/88A7B8W7888JL" method="post" target="_top" style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;">
-  <input class="pp-88A7B8W7888JL" type="submit" value="Donate a token" />
-  <img src=https://www.paypalobjects.com/images/Debit_Credit.svg alt="cards" />
-  <section> Powered by <img src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg" alt="paypal" style="height:0.875rem;vertical-align:middle;"/></section>
-</form>
+    [Support with a donation](https://www.paypal.com/ncp/payment/88A7B8W7888JL)
