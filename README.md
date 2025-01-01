@@ -66,7 +66,7 @@ To run the script and the tests, make sure you have the following dependencies i
     - Create a new snapshot for the first instance.
     - If the snapshot limit is exceeded, it will delete the oldest snapshot.
 
-    ***Sample Output***: \
+    *Sample Output*: \
     ```bash
     Fetching access token...
     Access Token: mock-access-token
