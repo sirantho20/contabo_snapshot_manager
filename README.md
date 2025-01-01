@@ -34,11 +34,9 @@ To run the script and the tests, make sure you have the following dependencies i
 
 2. **Install Dependencies**:
     Install the necessary Python libraries specified in the requirements.txt file by running:
-
     ```bash
     pip install -r requirements.txt
-
+    ```
     This command installs the required libraries:
-
     - requests
     - python-dotenv
