@@ -4,7 +4,7 @@
 
 ### License: GNU General Public License (GPL) v3.0
 
-This project allows you to manage snapshots for Contabo compute instances using their API. It handles the creation, deletion, and management of snapshots across multiple instances in your Contabo account. It also includes comprehensive tests to ensure the functionality works as expected.
+This project allows you to manage snapshots for Contabo compute instances using their API. It handles the creation, deletion, and management of snapshots across multiple instances in your Contabo account.
 
 ## Features
 - Create snapshots for multiple Contabo instances.
