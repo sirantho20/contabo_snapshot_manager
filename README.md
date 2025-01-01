@@ -48,6 +48,5 @@ To run the script and the tests, make sure you have the following dependencies i
     USERNAME=your-email@example.com
     PASSWORD=your-password
     ````
-    [!NOTE]
+    **NOTE**
     Note: The .env file is used to securely load your Contabo credentials without hardcoding them into the script.\
-    
