@@ -105,5 +105,8 @@ To run the script and the tests, make sure you have the following dependencies i
     1. Open Task Scheduler on Windows.
     2. Create a new task that triggers the script at the desired time.
     3. Set the program to run as python.exe and provide the full path to the `job_script.py` as the argument.
+    
+7. **Logging enabled for issue tracing**: \
+    Native python logging added with log rotation whenever log file size reaches 1MB. Logs are located in the log/ directory. For better traceability, some sensitive details are logged. ensure to protect your log files. I do not accept any damages, loses or breaching resulting from the use of this software or as a result of any sensitive information being exposed to the wrong audience. Special thanks to [Luis](http://www.pcexper.pt) for inspiring this release.
 
     [Support with a donation](https://www.paypal.com/ncp/payment/88A7B8W7888JL)
