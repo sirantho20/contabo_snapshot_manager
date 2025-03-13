@@ -158,39 +158,6 @@ class ContaboSnapshotManager:
         for instance in all_instances:
                     self.logger.info([instance["instanceId"], instance["displayName"]])
         return all_instances
-        # """
-        # Fetches and returns a list of all compute instances available in the Contabo account.
-
-        # Returns:
-        #     list: A list of instances, each containing metadata about the instance (e.g., ID, name, status).
-        
-        # Raises:
-        #     Exception: If the request to list instances fails, an error message will be printed.
-        # """
-        # self.logger.info("Requesting list of instances...")
-        # request_id = self.generate_request_id()
-        # headers = {
-        #     'Authorization': f'Bearer {self.access_token}',
-        #     'Content-Type': 'application/json',
-        #     'X-Request-ID': request_id
-        # }
-        # response = requests.get(self.list_instances_url, headers=headers)
-
-        # if response.status_code == 200:
-        #     instances = response.json().get('data', [])
-        #     if instances:
-        #         self.logger.info(f"Successfully fetched {len(instances)} instances.")
-        #         # instance_list = []
-        #         for instance in instances:
-        #             self.logger.info([instance["instanceId"], instance["displayName"]])
-        #         # self.logger.info(instance_list)
-        #         return instances
-        #     else:
-        #         self.logger.error(f"No instances found. Empty record returned.")
-        #         return []
-        # else:
-        #     print(f"Error: Failed to retrieve instances. Response: {response.text}")
-        #     return []
 
     def fetch_snapshots(self, instance_id):
         """
