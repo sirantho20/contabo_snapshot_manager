@@ -122,39 +122,75 @@ class ContaboSnapshotManager:
             return None
 
     def list_instances(self):
-        """
-        Fetches and returns a list of all compute instances available in the Contabo account.
-
-        Returns:
-            list: A list of instances, each containing metadata about the instance (e.g., ID, name, status).
-        
-        Raises:
-            Exception: If the request to list instances fails, an error message will be printed.
-        """
+        """List all instances, handling pagination to get all instances."""
         self.logger.info("Requesting list of instances...")
-        request_id = self.generate_request_id()
-        headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Content-Type': 'application/json',
-            'X-Request-ID': request_id
-        }
-        response = requests.get(self.list_instances_url, headers=headers)
 
-        if response.status_code == 200:
-            instances = response.json().get('data', [])
-            if instances:
-                self.logger.info(f"Successfully fetched {len(instances)} instances.")
-                # instance_list = []
-                for instance in instances:
+        # Initialize list to hold all instances
+        all_instances = []
+
+        # Get the first page of instances
+        access_token = self.get_access_token()
+        next_page_url = self.list_instances_url
+        while next_page_url:
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json',
+                'X-Request-ID': str(uuid.uuid4())
+            }
+            
+            try:
+                response = requests.get(next_page_url, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                
+                # Append the instances from the current page
+                all_instances.extend(data.get('data', []))
+
+                # Check if there is a next page
+                next_page_url = data['_links'].get('next')
+                self.logger.info(f"Fetched {len(data.get('data', []))} instances. Next page URL: {next_page_url}")
+            
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Failed to list instances. Error: {e}")
+                break
+        
+        self.logger.info(f"Successfully fetched {len(all_instances)} instances.")
+        for instance in all_instances:
                     self.logger.info([instance["instanceId"], instance["displayName"]])
-                # self.logger.info(instance_list)
-                return instances
-            else:
-                self.logger.error(f"No instances found. Empty record returned.")
-                return []
-        else:
-            print(f"Error: Failed to retrieve instances. Response: {response.text}")
-            return []
+        return all_instances
+        # """
+        # Fetches and returns a list of all compute instances available in the Contabo account.
+
+        # Returns:
+        #     list: A list of instances, each containing metadata about the instance (e.g., ID, name, status).
+        
+        # Raises:
+        #     Exception: If the request to list instances fails, an error message will be printed.
+        # """
+        # self.logger.info("Requesting list of instances...")
+        # request_id = self.generate_request_id()
+        # headers = {
+        #     'Authorization': f'Bearer {self.access_token}',
+        #     'Content-Type': 'application/json',
+        #     'X-Request-ID': request_id
+        # }
+        # response = requests.get(self.list_instances_url, headers=headers)
+
+        # if response.status_code == 200:
+        #     instances = response.json().get('data', [])
+        #     if instances:
+        #         self.logger.info(f"Successfully fetched {len(instances)} instances.")
+        #         # instance_list = []
+        #         for instance in instances:
+        #             self.logger.info([instance["instanceId"], instance["displayName"]])
+        #         # self.logger.info(instance_list)
+        #         return instances
+        #     else:
+        #         self.logger.error(f"No instances found. Empty record returned.")
+        #         return []
+        # else:
+        #     print(f"Error: Failed to retrieve instances. Response: {response.text}")
+        #     return []
 
     def fetch_snapshots(self, instance_id):
         """
