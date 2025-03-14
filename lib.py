@@ -47,13 +47,13 @@ class ContaboSnapshotManager:
         self.api_user = os.getenv("API_USER")
         self.api_password = os.getenv("API_PASSWORD")
         self.client_secret = os.getenv("CLIENT_SECRET")
+        self.instances_per_page = 20
         self.auth_url = "https://auth.contabo.com/auth/realms/contabo/protocol/openid-connect/token"
-        self.list_instances_url = "https://api.contabo.com/v1/compute/instances"
+        self.list_instances_url = "https://api.contabo.com/v1/compute/instances?size={}".format(self.instances_per_page)
         self.list_snapshots_url = "https://api.contabo.com/v1/compute/instances/{instance_id}/snapshots"
         self.create_snapshot_url = "https://api.contabo.com/v1/compute/instances/{instance_id}/snapshots"
         self.snapshots = []
         self.access_token = self.get_access_token()
-
         self.logger.info("Initialized ContaboSnapshotManager.")
 
     def setup_logger(self):
@@ -145,9 +145,13 @@ class ContaboSnapshotManager:
                 
                 # Append the instances from the current page
                 all_instances.extend(data.get('data', []))
-
+                
                 # Check if there is a next page
-                next_page_url = data['_links'].get('next')
+                if data['_links'].get('next'):
+                    next_page_url = 'https://api.contabo.com'+data['_links'].get('next')
+                else:
+                    next_page_url = None
+                    
                 self.logger.info(f"Fetched {len(data.get('data', []))} instances. Next page URL: {next_page_url}")
             
             except requests.exceptions.RequestException as e:
@@ -155,6 +159,7 @@ class ContaboSnapshotManager:
                 break
         
         self.logger.info(f"Successfully fetched {len(all_instances)} instances.")
+
         for instance in all_instances:
                     self.logger.info([instance["instanceId"], instance["displayName"]])
         return all_instances
