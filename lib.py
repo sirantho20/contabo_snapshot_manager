@@ -24,7 +24,6 @@ import json
 import uuid
 import re
 import os
-from dotenv import load_dotenv
 from datetime import datetime
 
 class ContaboSnapshotManager:
@@ -98,6 +97,7 @@ class ContaboSnapshotManager:
             Exception: If the authentication request fails, raises an error with the message.
         """
         self.logger.info("Requesting access token using client credentials...")
+        print("Fetching access token...")
         data = {
             'client_id': self.client_id,
             'client_secret': self.client_secret,
@@ -113,6 +113,7 @@ class ContaboSnapshotManager:
             access_token = response_json.get('access_token')
             if access_token:
                 self.logger.info(f"Access token acquired successfully: {access_token[:10]}...")  # Log only part of the token
+                print(f"Access Token: {access_token[:10]}...")
                 return access_token
             else:
                 self.logger.error(f"Failed to get access token. Error: {e}")
@@ -124,6 +125,7 @@ class ContaboSnapshotManager:
     def list_instances(self):
         """List all instances, handling pagination to get all instances."""
         self.logger.info("Requesting list of instances...")
+        print("Listing instances...")
 
         # Initialize list to hold all instances
         all_instances = []
@@ -159,9 +161,10 @@ class ContaboSnapshotManager:
                 break
         
         self.logger.info(f"Successfully fetched {len(all_instances)} instances.")
-
+        print("Instances:")
         for instance in all_instances:
-                    self.logger.info([instance["instanceId"], instance["displayName"]])
+            self.logger.info([instance["instanceId"], instance["displayName"]])
+            print(f"Instance ID: {instance['instanceId']}, Display Name: {instance['displayName']}")
         return all_instances
 
     def fetch_snapshots(self, instance_id):
@@ -175,6 +178,7 @@ class ContaboSnapshotManager:
             list: A list of snapshots for the given instance.
         """
         self.logger.info("Fetching snapshots for instance {}...".format(instance_id))
+        print(f"Fetching snapshots for instance {instance_id}...")
 
         request_id = self.generate_request_id()
         headers = {
@@ -188,6 +192,9 @@ class ContaboSnapshotManager:
         if response.status_code == 200:
             snapshots = response.json().get('data', [])
             self.logger.info(f"Fetched {len(snapshots)} snapshots for instance {instance_id}.")
+            print("Snapshots:")
+            for snap in snapshots:
+                print(f"Snapshot ID: {snap.get('snapshotId')}, Created Date: {snap.get('createdDate')}")
             return snapshots
         else:
             self.logger.error(f"Error: Failed to fetch snapshots for instance {instance_id}. Response: {response.text}")
@@ -236,6 +243,7 @@ class ContaboSnapshotManager:
 
         if response.status_code == 204:
             self.logger.info(f"Snapshot {snapshot_id} deleted successfully.")
+            print("Oldest snapshot deleted successfully!")
         else:
             self.logger.error(f"Error: Failed to delete snapshot {snapshot_id}. Response: {response.text}")
 
@@ -279,6 +287,7 @@ class ContaboSnapshotManager:
         # Ensure snapshot name contains only allowed characters
         snapshot_name = re.sub(r'[^a-zA-Z0-9 -]', '', snapshot_name)  # Allow letters, numbers, spaces, and dashes
         self.logger.info(f"Creating new snapshot for instance {instance_id} with name: {snapshot_name}")
+        print(f"Creating snapshot for instance {instance_id} with name: {snapshot_name}...")
 
         request_id = self.generate_request_id()
         headers = {
@@ -297,12 +306,14 @@ class ContaboSnapshotManager:
 
         if response.status_code == 402 and "Total snapshots exceed the total max limit" in response.text:
             self.logger.error(f"Snapshot limit exceeded for instance {instance_id}. Deleting oldest snapshot...")
+            print(f"Checking if snapshot limit is exceeded for instance {instance_id}...")
             self.delete_snapshots(instance_id)
             response = requests.post(url, headers=headers, json=data)  # Retry creating snapshot
 
         if response.status_code == 201:
             response_json = response.json()
             self.logger.info(f"Snapshot {snapshot_name} created successfully for instance {instance_id}!")
+            print(f"Snapshot {snapshot_name} created successfully!")
         else:
             self.logger.error(f"Error: Failed to create snapshot for instance {instance_id}. Response: {response.text}")
 
