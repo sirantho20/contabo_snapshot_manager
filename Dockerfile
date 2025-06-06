@@ -50,18 +50,13 @@ touch /app/logs/contabo_snapshot_manager.log\n\
 # Set Python to run unbuffered\n\
 export PYTHONUNBUFFERED=1\n\
 \n\
-# Start tailing the log file in the background\n\
-tail -f /app/logs/contabo_snapshot_manager.log &\n\
-\n\
-# Keep container running\n\
-while true; do\n\
-    sleep 1\n\
-done' > /app/entrypoint.sh
+# Start tailing the log file\n\
+exec tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
-# Set entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
-
 # run main_job.py once to ensure the script is working
 RUN python main_job.py
+
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
