@@ -24,6 +24,9 @@ VOLUME ["/app/logs"]
 RUN echo "0 */12 * * * cd /app && python main_job.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/snapshot-cron
 RUN chmod 0644 /etc/cron.d/snapshot-cron
 
+# Create empty log file
+RUN touch /app/logs/contabo_snapshot_manager.log
+
 # Run main_job.py once to ensure the script is working
 RUN python main_job.py
 
