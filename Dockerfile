@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY lib.py .
 COPY main_job.py .
 COPY templates/ templates/
-COPY .env .
 
 # Create necessary directories and set permissions
 RUN mkdir -p /app/logs /app/templates/email && \
@@ -59,12 +58,10 @@ while true; do\n\
     sleep 1\n\
 done' > /app/entrypoint.sh
 
-
-
 RUN chmod +x /app/entrypoint.sh
 
 # Set entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"] 
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # run main_job.py once to ensure the script is working
 RUN python main_job.py

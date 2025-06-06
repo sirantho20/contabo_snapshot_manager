@@ -42,13 +42,15 @@ class ContaboSnapshotManager:
         Initializes the ContaboSnapshotManager instance and retrieves an access token.
         
         The credentials for accessing the Contabo API are loaded from environment variables.
+        Docker environment variables take precedence over .env file variables.
         """
-        # Load environment variables from .env file
-        load_dotenv()
+        # Load environment variables from .env file (as fallback)
+        load_dotenv(override=False)  # Don't override existing environment variables
 
         # Setup logging
         self.logger = self.setup_logger()
 
+        # Get environment variables (Docker env vars will take precedence)
         self.client_id = os.getenv("CLIENT_ID")
         self.api_user = os.getenv("API_USER")
         self.api_password = os.getenv("API_PASSWORD")

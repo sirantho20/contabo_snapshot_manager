@@ -3,3 +3,4 @@
 logs
 # Ignore any directories named 'env' (commonly used for virtual environments)
 env/
+.env
