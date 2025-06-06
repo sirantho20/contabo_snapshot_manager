@@ -54,11 +54,19 @@ service cron start\n\
 mkdir -p /app/logs\n\
 chmod 755 /app/logs\n\
 \n\
+# Create log file if it doesn'\''t exist\n\
+touch /app/logs/contabo_snapshot_manager.log\n\
+\n\
 # Set Python to run unbuffered\n\
 export PYTHONUNBUFFERED=1\n\
 \n\
-# Start tailing the log file\n\
-tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
+# Start tailing the log file in the background\n\
+tail -f /app/logs/contabo_snapshot_manager.log &\n\
+\n\
+# Keep container running\n\
+while true; do\n\
+    sleep 1\n\
+done' > /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
