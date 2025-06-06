@@ -1,5 +1,4 @@
 # Ignore .env file containing sensitive credentials
-.env
 *.log
 logs
 # Ignore any directories named 'env' (commonly used for virtual environments)
