@@ -26,6 +26,10 @@ import re
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from jinja2 import Environment, FileSystemLoader
 
 class ContaboSnapshotManager:
     """
@@ -55,6 +59,9 @@ class ContaboSnapshotManager:
         self.snapshots = []
         self.access_token = self.get_access_token()
         self.logger.info("Initialized ContaboSnapshotManager.")
+        
+        # Initialize snapshot results tracking
+        self.snapshot_results = []
 
     def setup_logger(self):
         """Sets up the logger with rotation."""
@@ -78,6 +85,7 @@ class ContaboSnapshotManager:
         logger.addHandler(handler)
 
         return logger
+
     def generate_request_id(self):
         """
         Generates a unique UUID to be used as a request identifier for API calls.
@@ -264,6 +272,50 @@ class ContaboSnapshotManager:
         else:
             self.logger.info("No snapshots found to delete.")
 
+    def send_summary_email(self):
+        """
+        Generates and sends a summary email of the snapshot operations.
+        """
+        try:
+            # Load email template
+            env = Environment(loader=FileSystemLoader('templates/email'))
+            template = env.get_template('snapshot_summary.html')
+            
+            # Prepare email data
+            successful_snapshots = sum(1 for result in self.snapshot_results if result.get('success', False))
+            failed_snapshots = len(self.snapshot_results) - successful_snapshots
+            
+            email_data = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'total_instances': len(self.snapshot_results),
+                'successful_snapshots': successful_snapshots,
+                'failed_snapshots': failed_snapshots,
+                'instances': self.snapshot_results
+            }
+            
+            # Render template
+            html_content = template.render(**email_data)
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f'Contabo Snapshot Summary - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+            msg['From'] = os.getenv('EMAIL_FROM')
+            msg['To'] = os.getenv('ADMIN_EMAIL')
+            
+            # Attach HTML content
+            msg.attach(MIMEText(html_content, 'html'))
+            
+            # Send email
+            with smtplib.SMTP(os.getenv('SMTP_SERVER'), int(os.getenv('SMTP_PORT', 587))) as server:
+                server.starttls()
+                server.login(os.getenv('SMTP_USERNAME'), os.getenv('SMTP_PASSWORD'))
+                server.send_message(msg)
+                
+            self.logger.info("Summary email sent successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to send summary email: {str(e)}")
+
     def create_snapshot(self, instance_id):
         """
         Creates a new snapshot for a specific instance. If the snapshot limit is exceeded, 
@@ -293,18 +345,52 @@ class ContaboSnapshotManager:
         }
 
         url = self.create_snapshot_url.format(instance_id=instance_id)
-        response = requests.post(url, headers=headers, json=data)
+        
+        try:
+            response = requests.post(url, headers=headers, json=data)
 
-        if response.status_code == 402 and "Total snapshots exceed the total max limit" in response.text:
-            self.logger.error(f"Snapshot limit exceeded for instance {instance_id}. Deleting oldest snapshot...")
-            self.delete_snapshots(instance_id)
-            response = requests.post(url, headers=headers, json=data)  # Retry creating snapshot
+            if response.status_code == 402 and "Total snapshots exceed the total max limit" in response.text:
+                self.logger.error(f"Snapshot limit exceeded for instance {instance_id}. Deleting oldest snapshot...")
+                self.delete_snapshots(instance_id)
+                response = requests.post(url, headers=headers, json=data)  # Retry creating snapshot
 
-        if response.status_code == 201:
-            response_json = response.json()
-            self.logger.info(f"Snapshot {snapshot_name} created successfully for instance {instance_id}!")
-        else:
-            self.logger.error(f"Error: Failed to create snapshot for instance {instance_id}. Response: {response.text}")
+            if response.status_code == 201:
+                response_json = response.json()
+                self.logger.info(f"Snapshot {snapshot_name} created successfully for instance {instance_id}!")
+                
+                # Track successful snapshot
+                self.snapshot_results.append({
+                    'id': instance_id,
+                    'name': response_json.get('data', {}).get('displayName', 'Unknown'),
+                    'success': True,
+                    'snapshot_name': snapshot_name,
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                })
+            else:
+                self.logger.error(f"Error: Failed to create snapshot for instance {instance_id}. Response: {response.text}")
+                
+                # Track failed snapshot
+                self.snapshot_results.append({
+                    'id': instance_id,
+                    'name': 'Unknown',
+                    'success': False,
+                    'snapshot_name': snapshot_name,
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'error': response.text
+                })
+                
+        except Exception as e:
+            self.logger.error(f"Exception while creating snapshot: {str(e)}")
+            
+            # Track failed snapshot with exception
+            self.snapshot_results.append({
+                'id': instance_id,
+                'name': 'Unknown',
+                'success': False,
+                'snapshot_name': snapshot_name,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'error': str(e)
+            })
 
     def manage_snapshots(self):
         """
@@ -322,5 +408,8 @@ class ContaboSnapshotManager:
                 instance_id = instance.get('instanceId')
                 if instance_id:
                     self.create_snapshot(instance_id)
+            
+            # Send summary email after all operations are complete
+            self.send_summary_email()
         else:
             self.logger.info("No instances to manage.")

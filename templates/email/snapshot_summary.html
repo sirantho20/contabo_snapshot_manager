@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #1d4ed8;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .instance-card {
+            background-color: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .success {
+            color: #059669;
+        }
+        .error {
+            color: #dc2626;
+        }
+        .timestamp {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Contabo Snapshot Summary</h1>
+        <p class="timestamp">Generated on: {{timestamp}}</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-value">{{total_instances}}</div>
+            <div>Total Instances</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{successful_snapshots}}</div>
+            <div>Successful Snapshots</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{failed_snapshots}}</div>
+            <div>Failed Snapshots</div>
+        </div>
+    </div>
+
+    <div class="summary-card">
+        <h2>Instance Details</h2>
+        {% for instance in instances %}
+        <div class="instance-card">
+            <h3>{{instance.name}}</h3>
+            <p><strong>Instance ID:</strong> {{instance.id}}</p>
+            <p><strong>Status:</strong> 
+                <span class="{{'success' if instance.success else 'error'}}">
+                    {{'Success' if instance.success else 'Failed'}}
+                </span>
+            </p>
+            <p><strong>Snapshot Name:</strong> {{instance.snapshot_name}}</p>
+            <p class="timestamp">Created at: {{instance.timestamp}}</p>
+            {% if instance.error %}
+            <p class="error">Error: {{instance.error}}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html> 

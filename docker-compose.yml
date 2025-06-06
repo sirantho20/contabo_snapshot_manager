@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  contabo-snapshot-manager:
+    build: .
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    restart: unless-stopped 
