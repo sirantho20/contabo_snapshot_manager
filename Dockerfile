@@ -16,6 +16,21 @@ COPY main_job.py .
 COPY templates/ templates/
 COPY .env .
 
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs /app/templates/email && \
+    chmod 755 /app/logs /app/templates/email
+
+# Create a non-root user and switch to it
+RUN useradd -m appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Set up volume for logs
+VOLUME ["/app/logs"]
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
 # Create log directory and set it as a volume
 RUN mkdir -p logs
 VOLUME ["/app/logs"]

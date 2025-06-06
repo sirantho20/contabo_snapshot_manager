@@ -1,12 +1,21 @@
 version: '3.8'
 
 services:
-  contabo-snapshot-manager:
+  contabo-snapshot:
     build: .
     volumes:
       - ./logs:/app/logs
-    env_file:
-      - .env
     environment:
-      - PYTHONUNBUFFERED=1
+      - CLIENT_ID=${CLIENT_ID}
+      - API_USER=${API_USER}
+      - API_PASSWORD=${API_PASSWORD}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - LOG_MAX_MB=${LOG_MAX_MB:-200}
+      - LOG_BACKUP_COUNT=${LOG_BACKUP_COUNT:-5}
     restart: unless-stopped 
