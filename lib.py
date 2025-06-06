@@ -43,6 +43,8 @@ class ContaboSnapshotManager:
         
         The credentials for accessing the Contabo API are loaded from environment variables.
         """
+        # Load environment variables from .env file
+        load_dotenv()
 
         # Setup logging
         self.logger = self.setup_logger()
@@ -71,18 +73,40 @@ class ContaboSnapshotManager:
 
         log_file = os.path.join(log_dir, "contabo_snapshot_manager.log")
 
+        # Get log configuration from environment variables with defaults
+        # Convert MB to bytes (1MB = 1024 * 1024 bytes)
+        max_mb = int(os.getenv('LOG_MAX_MB', 200))  # Default 200MB
+        max_bytes = max_mb * 1024 * 1024
+        backup_count = int(os.getenv('LOG_BACKUP_COUNT', 5))  # Default 5 backup files
+
         # Create a rotating file handler for logs
-        handler = RotatingFileHandler(log_file, maxBytes=1 * 1024 * 1024, backupCount=5)
+        handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding='utf-8'
+        )
         handler.setLevel(logging.INFO)
 
         # Create a formatter and attach it to the handler
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        # Include filename, line number, and function name in the log format
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d - %(funcName)s()] - %(message)s'
+        )
         handler.setFormatter(formatter)
 
         # Get the root logger
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
+        
+        # Remove any existing handlers to avoid duplicate logs
+        for existing_handler in logger.handlers[:]:
+            logger.removeHandler(existing_handler)
+            
         logger.addHandler(handler)
+
+        # Log the current log configuration
+        logger.info(f"Logging configured with max file size: {max_mb}MB and {backup_count} backup files")
 
         return logger
 
@@ -305,16 +329,34 @@ class ContaboSnapshotManager:
             # Attach HTML content
             msg.attach(MIMEText(html_content, 'html'))
             
-            # Send email
-            with smtplib.SMTP(os.getenv('SMTP_SERVER'), int(os.getenv('SMTP_PORT', 587))) as server:
-                server.starttls()
-                server.login(os.getenv('SMTP_USERNAME'), os.getenv('SMTP_PASSWORD'))
-                server.send_message(msg)
-                
-            self.logger.info("Summary email sent successfully")
+            # Get SMTP settings from environment
+            smtp_server = os.getenv('SMTP_SERVER')
+            smtp_port = int(os.getenv('SMTP_PORT', 587))
+            smtp_username = os.getenv('SMTP_USERNAME')
+            smtp_password = os.getenv('SMTP_PASSWORD')
             
+            if not all([smtp_server, smtp_port, smtp_username, smtp_password]):
+                raise ValueError("Missing SMTP configuration. Please check your environment variables.", smtp_server, smtp_port, smtp_username, smtp_password)
+            
+            # Send email with proper connection handling
+            self.logger.info(f"Connecting to SMTP server {smtp_server}:{smtp_port}")
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.set_debuglevel(1)  # Enable debug output
+                self.logger.info("Starting TLS connection")
+                server.starttls()
+                self.logger.info(f"Logging in as {smtp_username}")
+                server.login(smtp_username, smtp_password)
+                self.logger.info("Sending email message")
+                server.send_message(msg)
+                self.logger.info("Email sent successfully")
+                
+        except smtplib.SMTPException as e:
+            self.logger.error(f"SMTP error while sending summary email: {str(e)}")
+        except ValueError as e:
+            self.logger.error(f"Configuration error: {str(e)}")
         except Exception as e:
-            self.logger.error(f"Failed to send summary email: {str(e)}")
+            self.logger.error(f"Unexpected error while sending summary email: {str(e)}")
+            # Don't re-raise the exception to allow the script to continue
 
     def create_snapshot(self, instance_id):
         """
@@ -350,46 +392,70 @@ class ContaboSnapshotManager:
             response = requests.post(url, headers=headers, json=data)
 
             if response.status_code == 402 and "Total snapshots exceed the total max limit" in response.text:
-                self.logger.error(f"Snapshot limit exceeded for instance {instance_id}. Deleting oldest snapshot...")
+                self.logger.info(f"Snapshot limit exceeded for instance {instance_id}. Deleting oldest snapshot...")
                 self.delete_snapshots(instance_id)
+                self.logger.info(f"Retrying snapshot creation for instance {instance_id}")
                 response = requests.post(url, headers=headers, json=data)  # Retry creating snapshot
 
             if response.status_code == 201:
-                response_json = response.json()
-                self.logger.info(f"Snapshot {snapshot_name} created successfully for instance {instance_id}!")
-                
-                # Track successful snapshot
-                self.snapshot_results.append({
-                    'id': instance_id,
-                    'name': response_json.get('data', {}).get('displayName', 'Unknown'),
-                    'success': True,
-                    'snapshot_name': snapshot_name,
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                })
+                try:
+                    response_json = response.json()
+                    # The API returns data in a nested structure
+                    snapshot_data = response_json.get('data', [{}])[0] if isinstance(response_json.get('data'), list) else response_json.get('data', {})
+                    
+                    self.logger.info(f"Snapshot {snapshot_name} created successfully for instance {instance_id}!")
+                    self.logger.debug(f"Snapshot response data: {snapshot_data}")
+                    
+                    # Track successful snapshot with more details
+                    self.snapshot_results.append({
+                        'id': instance_id,
+                        'name': snapshot_data.get('name', 'Unknown'),
+                        'success': True,
+                        'snapshot_name': snapshot_name,
+                        'snapshot_id': snapshot_data.get('snapshotId', 'Unknown'),
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'status': 'success'
+                    })
+                except (KeyError, IndexError, TypeError) as e:
+                    error_msg = f"Error parsing snapshot response: {str(e)}. Response: {response.text}"
+                    self.logger.error(error_msg)
+                    self.snapshot_results.append({
+                        'id': instance_id,
+                        'name': 'Unknown',
+                        'success': False,
+                        'snapshot_name': snapshot_name,
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'error': error_msg,
+                        'status': 'error'
+                    })
             else:
-                self.logger.error(f"Error: Failed to create snapshot for instance {instance_id}. Response: {response.text}")
+                error_msg = f"Failed to create snapshot. Status code: {response.status_code}, Response: {response.text}"
+                self.logger.error(error_msg)
                 
-                # Track failed snapshot
+                # Track failed snapshot with more details
                 self.snapshot_results.append({
                     'id': instance_id,
                     'name': 'Unknown',
                     'success': False,
                     'snapshot_name': snapshot_name,
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'error': response.text
+                    'error': error_msg,
+                    'status': 'failed'
                 })
                 
         except Exception as e:
-            self.logger.error(f"Exception while creating snapshot: {str(e)}")
+            error_msg = f"Exception while creating snapshot for instance {instance_id}: {str(e)}"
+            self.logger.error(error_msg)
             
-            # Track failed snapshot with exception
+            # Track failed snapshot with exception details
             self.snapshot_results.append({
                 'id': instance_id,
                 'name': 'Unknown',
                 'success': False,
                 'snapshot_name': snapshot_name,
                 'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'error': str(e)
+                'error': error_msg,
+                'status': 'error'
             })
 
     def manage_snapshots(self):

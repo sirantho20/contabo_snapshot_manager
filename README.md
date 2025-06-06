@@ -1,112 +1,188 @@
 # Contabo Snapshot Manager
 
-## Author: Anthony Afetsrom <sirantho20@gmail.com>
-
-### License: GNU General Public License (GPL) v3.0
-
-This project allows you to manage snapshots for Contabo compute instances using their API. It handles the creation, deletion, and management of snapshots across multiple instances in your Contabo account.
+A Python-based tool for managing snapshots of Contabo compute instances. This tool automatically creates and manages snapshots for all your Contabo VPS instances, with email notifications and log rotation.
 
 ## Features
-- Create snapshots for multiple Contabo instances.
-- Delete the oldest snapshot when the snapshot limit is exceeded.
-- Securely authenticate using OAuth 2.0 credentials.
 
-## Requirements
+- **Automated Snapshot Management**
+  - Creates snapshots for all Contabo compute instances
+  - Automatically deletes oldest snapshots when limit is reached
+  - Runs every 12 hours via cron job
 
-To run the script and the tests, make sure you have the following dependencies installed:
+- **Email Notifications**
+  - Sends detailed summary reports after each run
+  - Beautiful HTML email template with statistics
+  - Includes success/failure status for each instance
+  - Shows snapshot names and timestamps
 
-- **Python 3.6+**
-- **pip** (Python's package installer)
+- **Logging System**
+  - Rotating log files with configurable size
+  - Configurable number of backup files
+  - Detailed logging of all operations
+  - Log rotation to prevent disk space issues
 
-### Required Python Libraries
+- **Docker Support**
+  - Containerized application
+  - Easy deployment
+  - Environment variable configuration
+  - Persistent log storage
 
-- `requests`: For making HTTP requests to the Contabo API.
-- `python-dotenv`: To load environment variables from a `.env` file securely.
-- `unittest2`: To run unit tests for the code.
+## Prerequisites
 
-## Installation Instructions
+- Python 3.9 or higher
+- Docker (for containerized deployment)
+- Contabo API credentials
+- SMTP server access for email notifications
 
-1. **Clone the repository**:
-   Clone the project to your local machine by running the following command:
-   ```bash
-   git clone https://github.com/yourusername/contabo-snapshot-manager.git
-   cd contabo-snapshot-manager
+## Environment Variables
 
-2. **Install Dependencies**: \
-    Install the necessary Python libraries specified in the requirements.txt file by running:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    This command installs the required libraries: 
-    - requests
-    - python-dotenv
-3. **Create the .env File**: \
-    Create a `.env` file in the root directory of the project to store your sensitive credentials. The .env file should contain the following environment variables: 
-    ```bash
-    CLIENT_ID=your-client-id
-    CLIENT_SECRET=your-client-secret
-    USERNAME=your-email@example.com
-    PASSWORD=your-password
-    ````
-    The `.env` file is used to securely load your Contabo credentials without hardcoding them into the script.
+Create a `.env` file in the project root with the following variables:
 
-4. **Verify the .env File**: \
-    Ensure that the `.env` file is correctly placed in the root of the project directory. The script will load the credentials from this file automatically.
+```env
+# Contabo API Credentials
+CLIENT_ID=your_client_id
+API_USER=your_api_user
+API_PASSWORD=your_api_password
+CLIENT_SECRET=your_client_secret
 
-5. **Run the Script**: \
-    Now that everything is set up, you can run the snapshot management script (`job_script.py`).
-    To start the process, simply run:
-    ```bash
-    python job_script.py
-    ```
-    This will execute the following tasks:
-    - Fetch your access token using the credentials from the .env file.
-    - List the available instances from your Contabo account.
-    - Fetch the snapshots for the listed instances.
-    - Create a new snapshot for the first instance.
-    - If the snapshot limit is exceeded, it will delete the oldest snapshot.
+# Email Configuration
+EMAIL_FROM=your-email@example.com
+ADMIN_EMAIL=admin@example.com
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your-smtp-username
+SMTP_PASSWORD=your-smtp-password
 
-    *Sample Output*:
-    ```bash
-    python job_script.py
-    Fetching access token...
-    Access Token: mock-access-token
+# Logging Configuration
+LOG_MAX_MB=200          # Maximum log file size in MB
+LOG_BACKUP_COUNT=5      # Number of backup files to keep
+```
 
-    Listing instances...
-    Instances:
-    Instance ID: 123456789, Display Name: Mock Instance 1
-    Instance ID: 987654321, Display Name: Mock Instance 2
+## Installation
 
-    Fetching snapshots for instance 123456789...
-    Snapshots:
-    Snapshot ID: snap12345, Created Date: 2025-01-01T11:44:40.436Z
+### Using Docker (Recommended)
 
-    Creating snapshot for instance 123456789 with name: snapshot-2025-01-01_21-21-38...
-    Snapshot snapshot-2025-01-01_21-21-38 created successfully!
+1. Build the Docker image:
+```bash
+docker build -t contabo-snapshot-manager .
+```
 
-    Checking if snapshot limit is exceeded for instance 123456789...
-    Oldest snapshot deleted successfully!
-    ````
-6. **Automating the Script (Optional)**: \
-    You can automate the script to run periodically by using cron jobs (on Linux/macOS) or Task Scheduler (on Windows).
-    xample: Automate with Cron (Linux/macOS)
-    To schedule the script to run daily at 2 AM, you can add a cron job:
+2. Run the container:
+```bash
+docker run -d \
+  --name contabo-snapshot \
+  -v $(pwd)/logs:/app/logs \
+  contabo-snapshot-manager
+```
 
-    1. Open the cron file:
-    ```bash
-    crontab -e
-    ````
-    2. Add the following line to schedule the script:
-    ```bash
-    0 2 * * * /usr/bin/yourenv/python /path/to/your/project/job_script.py
-    ```
-    This cron job will run the script every day at 2 AM.
-    Example: Automate with Task Scheduler (Windows)
-    1. Open Task Scheduler on Windows.
-    2. Create a new task that triggers the script at the desired time.
-    3. Set the program to run as python.exe and provide the full path to the `job_script.py` as the argument.
-    
-7. **Logging enabled for issue tracing**: \
-    Native python logging added with log rotation whenever log file size reaches 1MB. Logs are located in the log/ directory. For better traceability, some sensitive details are logged. ensure to protect your log files. I do not accept any damages, loses or breaching resulting from the use of this software or as a result of any sensitive information being exposed to the wrong audience. Special thanks to [Luis](http://www.pcexper.pt) for inspiring this release.
+### Manual Installation
 
-    [Support with a donation](https://www.paypal.com/ncp/payment/88A7B8W7888JL)
+1. Install required dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the script:
+```bash
+python main_job.py
+```
+
+## Testing
+
+The project includes a comprehensive test suite that covers all functionality. The tests use Python's unittest framework and mock external dependencies to ensure reliable testing.
+
+### Running Tests
+
+To run the test suite:
+```bash
+python test.py
+```
+
+### Test Coverage
+
+The test suite includes:
+
+1. **Logger Tests**
+   - Logger creation and configuration
+   - Log file creation and rotation
+   - Environment variable handling
+
+2. **API Tests**
+   - Access token retrieval
+   - Instance listing
+   - Snapshot operations (create, delete, fetch)
+   - Error handling
+
+3. **Email Tests**
+   - Email summary generation
+   - SMTP connection handling
+   - Email content verification
+
+4. **Integration Tests**
+   - Complete snapshot management workflow
+   - End-to-end process verification
+
+### Test Environment
+
+The tests:
+- Run in isolation
+- Mock all external API calls
+- Mock SMTP server
+- Clean up after themselves
+- Use a separate test configuration
+
+### Writing New Tests
+
+To add new tests:
+1. Add test methods to the `TestContaboSnapshotManager` class
+2. Use the `@patch` decorator to mock external dependencies
+3. Follow the existing test patterns
+4. Ensure proper cleanup in `tearDown`
+
+## Log Files
+
+Logs are stored in the `logs` directory:
+- Main log file: `logs/contabo_snapshot_manager.log`
+- Backup files: `logs/contabo_snapshot_manager.log.1`, `.2`, etc.
+- Cron job logs: `logs/cron.log`
+
+## Email Reports
+
+The system sends email reports after each run, including:
+- Total number of instances
+- Number of successful/failed snapshots
+- Detailed information for each instance
+- Timestamps and error messages (if any)
+
+## Docker Volume
+
+The Docker container uses a volume for logs:
+- Mounted at `/app/logs`
+- Persists between container restarts
+- Accessible from the host machine
+
+## Updating Configuration
+
+### With Docker
+
+1. Update the `.env` file
+2. Rebuild and restart the container:
+```bash
+docker stop contabo-snapshot
+docker rm contabo-snapshot
+docker build -t contabo-snapshot-manager .
+docker run -d --name contabo-snapshot -v $(pwd)/logs:/app/logs contabo-snapshot-manager
+```
+
+### Manual Update
+
+1. Update the `.env` file
+2. Restart the script
+
+## License
+
+This project is licensed under the GNU General Public License (GPL) v3.0.
+
+## Author
+
+Anthony Afetsrom <sirantho20@gmail.com>
