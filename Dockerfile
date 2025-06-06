@@ -24,6 +24,9 @@ VOLUME ["/app/logs"]
 RUN echo "0 */12 * * * cd /app && python main_job.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/snapshot-cron
 RUN chmod 0644 /etc/cron.d/snapshot-cron
 
+# Run main_job.py once to ensure the script is working
+RUN python main_job.py
+
 # Create entrypoint script that ensures environment is loaded
 RUN echo '#!/bin/sh\n\
 # Start cron service\n\
@@ -37,7 +40,7 @@ chmod 755 /app/logs\n\
 export PYTHONUNBUFFERED=1\n\
 \n\
 # Start tailing the log file\n\
-tail -f /app/logs/cron.log' > /app/entrypoint.sh
+tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
