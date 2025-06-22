@@ -68,7 +68,7 @@ class ContaboSnapshotManager:
         self.snapshot_results = []
 
     def setup_logger(self):
-        """Sets up the logger with rotation."""
+        """Sets up the logger with rotation.""" 
         log_dir = "logs"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
