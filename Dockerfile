@@ -28,11 +28,20 @@ RUN mkdir -p /app/logs /app/templates/email && \
 RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot-cron && \
     chmod 0644 /etc/cron.d/snapshot-cron
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting Contabo Snapshot Manager..."\n\
+echo "Running initial snapshot job..."\n\
+cd /app && python main_job.py\n\
+echo "Starting cron scheduler..."\n\
+exec cron -f' > /app/startup.sh && \
+    chmod +x /app/startup.sh
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
 # Set up volume for logs
 VOLUME ["/app/logs"]
 
-# Start cron in foreground as root
-CMD ["cron", "-f"]
+# Start with the startup script
+CMD ["/app/startup.sh"]
