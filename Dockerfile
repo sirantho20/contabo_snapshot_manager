@@ -31,7 +31,10 @@ RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot
 # Create a non-root user and configure sudo
 RUN useradd -m appuser && \
     echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/service cron start" >> /etc/sudoers && \
-    chown -R appuser:appuser /app
+    echo "appuser ALL=(ALL) NOPASSWD: /usr/sbin/cron" >> /etc/sudoers && \
+    chown -R appuser:appuser /app && \
+    mkdir -p /var/run && \
+    chown appuser:appuser /var/run
 USER appuser
 
 # Set up volume for logs
@@ -57,7 +60,7 @@ export PYTHONUNBUFFERED=1\n\
 export TZ=Asia/Manila\n\
 \n\
 # Start cron with stdout logging and tail the log file\n\
-exec tail -f /app/logs/contabo_snapshot_manager.log & cron -f' > /app/entrypoint.sh
+exec tail -f /app/logs/contabo_snapshot_manager.log & sudo cron -f' > /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
