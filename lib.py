@@ -30,6 +30,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Environment, FileSystemLoader
+import pytz
 
 class ContaboSnapshotManager:
     """
@@ -50,6 +51,10 @@ class ContaboSnapshotManager:
         # Setup logging
         self.logger = self.setup_logger()
 
+        # Set timezone to Asia/Manila
+        self.timezone = pytz.timezone('Asia/Manila')
+        self.logger.info(f"Timezone set to: {self.timezone}")
+
         # Get environment variables (Docker env vars will take precedence)
         self.client_id = os.getenv("CLIENT_ID")
         self.api_user = os.getenv("API_USER")
@@ -66,6 +71,15 @@ class ContaboSnapshotManager:
         
         # Initialize snapshot results tracking
         self.snapshot_results = []
+
+    def get_current_time(self):
+        """
+        Gets the current time in Asia/Manila timezone.
+        
+        Returns:
+            datetime: Current time in Asia/Manila timezone.
+        """
+        return datetime.now(self.timezone)
 
     def setup_logger(self):
         """Sets up the logger with rotation.""" 
@@ -312,7 +326,7 @@ class ContaboSnapshotManager:
             failed_snapshots = len(self.snapshot_results) - successful_snapshots
             
             email_data = {
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'timestamp': self.get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
                 'total_instances': len(self.snapshot_results),
                 'successful_snapshots': successful_snapshots,
                 'failed_snapshots': failed_snapshots,
@@ -324,7 +338,7 @@ class ContaboSnapshotManager:
             
             # Create message
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = f'Contabo Snapshot Summary - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+            msg['Subject'] = f'Contabo Snapshot Summary - {self.get_current_time().strftime("%Y-%m-%d %H:%M")}'
             msg['From'] = os.getenv('EMAIL_FROM')
             msg['To'] = os.getenv('ADMIN_EMAIL')
             
@@ -371,7 +385,7 @@ class ContaboSnapshotManager:
         Returns:
             None
         """
-        snapshot_name = f"snapshot-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        snapshot_name = f"snapshot-{self.get_current_time().strftime('%Y-%m-%d_%H-%M-%S')}"
         # Ensure snapshot name contains only allowed characters
         snapshot_name = re.sub(r'[^a-zA-Z0-9 -]', '', snapshot_name)  # Allow letters, numbers, spaces, and dashes
         self.logger.info(f"Creating new snapshot for instance {instance_id} with name: {snapshot_name}")
@@ -385,7 +399,7 @@ class ContaboSnapshotManager:
 
         data = {
             "name": snapshot_name,
-            "description": f"Automated snapshot taken on {datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+            "description": f"Automated snapshot taken on {self.get_current_time().strftime('%Y-%m-%d_%H-%M-%S')}"
         }
 
         url = self.create_snapshot_url.format(instance_id=instance_id)
@@ -415,7 +429,7 @@ class ContaboSnapshotManager:
                         'success': True,
                         'snapshot_name': snapshot_name,
                         'snapshot_id': snapshot_data.get('snapshotId', 'Unknown'),
-                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'timestamp': self.get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
                         'status': 'success'
                     })
                 except (KeyError, IndexError, TypeError) as e:
@@ -426,7 +440,7 @@ class ContaboSnapshotManager:
                         'name': 'Unknown',
                         'success': False,
                         'snapshot_name': snapshot_name,
-                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'timestamp': self.get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
                         'error': error_msg,
                         'status': 'error'
                     })
@@ -440,7 +454,7 @@ class ContaboSnapshotManager:
                     'name': 'Unknown',
                     'success': False,
                     'snapshot_name': snapshot_name,
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'timestamp': self.get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
                     'error': error_msg,
                     'status': 'failed'
                 })
@@ -455,7 +469,7 @@ class ContaboSnapshotManager:
                 'name': 'Unknown',
                 'success': False,
                 'snapshot_name': snapshot_name,
-                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'timestamp': self.get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
                 'error': error_msg,
                 'status': 'error'
             })
