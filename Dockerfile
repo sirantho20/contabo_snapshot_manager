@@ -31,6 +31,7 @@ RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot
 # Create startup script
 RUN echo '#!/bin/bash\n\
 echo "Starting Contabo Snapshot Manager..."\n\
+echo "SMTP_SERVER: $SMTP_SERVER"\n\
 echo "Running initial snapshot job..."\n\
 cd /app && python main_job.py\n\
 echo "Starting cron scheduler..."\n\
