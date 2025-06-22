@@ -1,7 +1,11 @@
 FROM python:3.9-slim
 
 # Install cron and sudo
-RUN apt-get update && apt-get install -y cron sudo
+RUN apt-get update && apt-get install -y cron sudo tzdata
+
+# Set timezone to Asia/Manila
+ENV TZ=Asia/Manila
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Set working directory
 WORKDIR /app
@@ -50,6 +54,7 @@ touch /app/logs/contabo_snapshot_manager.log\n\
 \n\
 # Set Python to run unbuffered\n\
 export PYTHONUNBUFFERED=1\n\
+export TZ=Asia/Manila\n\
 \n\
 # Start tailing the log file\n\
 exec tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
@@ -57,7 +62,7 @@ exec tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # run main_job.py once to ensure the script is working
-RUN python main_job.py
 
 # Set entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
+RUN python main_job.py
