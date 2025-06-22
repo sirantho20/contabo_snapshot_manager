@@ -25,7 +25,7 @@ RUN mkdir -p /app/logs /app/templates/email && \
 
 # Create cron job with environment variables (as root)
 # RUN echo "0 */12 * * * cd /app && python main_job.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/snapshot-cron && \
-RUN echo "*/2 * * * * cd /app && python main_job.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/snapshot-cron && \
+RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot-cron && \
     chmod 0644 /etc/cron.d/snapshot-cron
 
 # Create a non-root user and configure sudo
@@ -56,8 +56,8 @@ touch /app/logs/contabo_snapshot_manager.log\n\
 export PYTHONUNBUFFERED=1\n\
 export TZ=Asia/Manila\n\
 \n\
-# Start tailing the log file\n\
-exec tail -f /app/logs/contabo_snapshot_manager.log' > /app/entrypoint.sh
+# Start cron with stdout logging and tail the log file\n\
+exec tail -f /app/logs/contabo_snapshot_manager.log & cron -f' > /app/entrypoint.sh
 
 RUN chmod +x /app/entrypoint.sh
 
