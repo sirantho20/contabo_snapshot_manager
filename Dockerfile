@@ -45,9 +45,6 @@ ENV PYTHONUNBUFFERED=1
 
 # Create entrypoint script that ensures environment is loaded
 RUN echo '#!/bin/sh\n\
-# Start cron service\n\
-sudo service cron start\n\
-\n\
 # Ensure logs directory exists and has proper permissions\n\
 mkdir -p /app/logs\n\
 chmod 755 /app/logs\n\
