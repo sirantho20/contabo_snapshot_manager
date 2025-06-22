@@ -36,13 +36,29 @@ LOG_BACKUP_COUNT=5
 
 ### 2. Docker Deployment
 
-#### Manual Deployment
-Build the image:
+#### Build the Image
 ```bash
 docker build -t contabo-snapshot-manager .
 ```
 
-Run with environment variables:
+#### Run with Environment Variables
+```bash
+docker run -d \
+  -e CLIENT_ID=your_client_id \
+  -e API_USER=your_api_user \
+  -e API_PASSWORD=your_api_password \
+  -e CLIENT_SECRET=your_client_secret \
+  -e ADMIN_EMAIL=your_email \
+  -e EMAIL_FROM=your_from_email \
+  -e SMTP_SERVER=your_smtp_server \
+  -e SMTP_PORT=587 \
+  -e SMTP_USERNAME=your_smtp_username \
+  -e SMTP_PASSWORD=your_smtp_password \
+  --name contabo-snapshots \
+  contabo-snapshot-manager
+```
+
+#### Run with .env File
 ```bash
 docker run -d \
   --env-file .env \
@@ -50,93 +66,43 @@ docker run -d \
   contabo-snapshot-manager
 ```
 
-#### Webhook-Based Deployment
-For automated deployments via git webhooks:
-
-1. **Set environment variables in your deployment platform:**
-   - GitHub Actions: Use repository secrets
-   - GitLab CI: Use CI/CD variables
-   - Docker Hub: Use build arguments (for non-sensitive data)
-   - CapRover: Use app secrets
-
-2. **Example GitHub Actions workflow:**
-```yaml
-name: Deploy to Server
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.4
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          script: |
-            cd /path/to/app
-            git pull
-            docker build -t contabo-snapshot-manager .
-            docker stop contabo-snapshots || true
-            docker rm contabo-snapshots || true
-            docker run -d \
-              -e CLIENT_ID="${{ secrets.CLIENT_ID }}" \
-              -e API_USER="${{ secrets.API_USER }}" \
-              -e API_PASSWORD="${{ secrets.API_PASSWORD }}" \
-              -e CLIENT_SECRET="${{ secrets.CLIENT_SECRET }}" \
-              -e ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}" \
-              -e EMAIL_FROM="${{ secrets.EMAIL_FROM }}" \
-              -e SMTP_SERVER="${{ secrets.SMTP_SERVER }}" \
-              -e SMTP_PORT="${{ secrets.SMTP_PORT }}" \
-              -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
-              -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
-              --name contabo-snapshots \
-              contabo-snapshot-manager
-```
-
-3. **Example CapRover deployment:**
-```json
-{
-  "appName": "contabo-snapshots",
-  "imageName": "your-registry/contabo-snapshot-manager",
-  "envVars": [
-    {
-      "key": "CLIENT_ID",
-      "value": "your_client_id"
-    },
-    {
-      "key": "API_USER", 
-      "value": "your_api_user"
-    }
-    // ... other environment variables
-  ]
-}
-```
-
-## Security Best Practices
-
-1. **Never commit `.env` files** - They're already in `.gitignore`
-2. **Use secrets management** in production (Docker secrets, Kubernetes secrets, etc.)
-3. **Rotate credentials regularly**
-4. **Use least privilege API keys**
-5. **Monitor logs for suspicious activity**
-6. **For webhook deployments:**
-   - Store secrets in your deployment platform's secret management
-   - Never expose secrets in build logs
-   - Use encrypted secrets when possible
-   - Rotate deployment keys regularly
-
 ## Features
 
-- Automated snapshot creation every 2 minutes
+- Automated snapshot creation every 12 hours
 - Automatic cleanup of old snapshots when limit is reached
 - Email reporting with detailed summaries
 - Asia/Manila timezone support
 - Comprehensive logging with rotation
 - Docker containerization
+- Immediate execution on container start
+
+## Security Best Practices
+
+1. **Never commit `.env` files** - They're already in `.gitignore`
+2. **Use environment variables** at runtime with Docker `-e` flags
+3. **Rotate credentials regularly**
+4. **Use least privilege API keys**
+5. **Monitor logs for suspicious activity**
+
+## Container Behavior
+
+- **Startup**: Runs the main script once immediately when container starts
+- **Scheduling**: Runs every 12 hours at 00:00 and 12:00 (Asia/Manila time)
+- **Logging**: All output goes to Docker logs (stdout)
+- **Timezone**: All timestamps are in Asia/Manila timezone
+
+## Monitoring
+
+```bash
+# Check container status
+docker ps -a | grep contabo-snapshots
+
+# View logs
+docker logs -f contabo-snapshots
+
+# Check container environment variables
+docker exec contabo-snapshots env | grep -E "(CLIENT_ID|API_USER|SMTP_SERVER)"
+```
 
 ## License
 
