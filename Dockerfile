@@ -20,25 +20,19 @@ COPY lib.py .
 COPY main_job.py .
 COPY templates/ templates/
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/templates/email
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/templates/email && \
+    chmod 755 /app/logs /app/templates/email
 
 # Create cron job
 RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot-cron && \
     chmod 0644 /etc/cron.d/snapshot-cron
 
-# Create a non-root user
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /app
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-
-# Switch to non-root user
-USER appuser
 
 # Set up volume for logs
 VOLUME ["/app/logs"]
 
-# Start cron in foreground
+# Start cron in foreground as root
 CMD ["cron", "-f"]
