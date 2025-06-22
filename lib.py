@@ -45,7 +45,7 @@ class ContaboSnapshotManager:
         Docker environment variables take precedence over .env file variables.
         """
         # Load environment variables from .env file (as fallback)
-        load_dotenv(override=False)  # Don't override existing environment variables
+        # load_dotenv(override=False)  # Don't override existing environment variables
 
         # Setup logging
         self.logger = self.setup_logger()
