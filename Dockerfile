@@ -25,7 +25,7 @@ RUN mkdir -p /app/logs /app/templates/email && \
     chmod 755 /app/logs /app/templates/email
 
 # Create cron job
-RUN echo "*/2 * * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot-cron && \
+RUN echo "0 */12 * * * cd /app && python main_job.py 2>&1" > /etc/cron.d/snapshot-cron && \
     chmod 0644 /etc/cron.d/snapshot-cron
 
 # Create startup script
