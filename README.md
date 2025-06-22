@@ -1,188 +1,143 @@
 # Contabo Snapshot Manager
 
-A Python-based tool for managing snapshots of Contabo compute instances. This tool automatically creates and manages snapshots for all your Contabo VPS instances, with email notifications and log rotation.
+A Python application for managing snapshots of Contabo compute instances with automated email reporting.
 
-## Features
+## Setup
 
-- **Automated Snapshot Management**
-  - Creates snapshots for all Contabo compute instances
-  - Automatically deletes oldest snapshots when limit is reached
-  - Runs every 12 hours via cron job
+### 1. Environment Variables
 
-- **Email Notifications**
-  - Sends detailed summary reports after each run
-  - Beautiful HTML email template with statistics
-  - Includes success/failure status for each instance
-  - Shows snapshot names and timestamps
+Copy the example environment file and fill in your credentials:
 
-- **Logging System**
-  - Rotating log files with configurable size
-  - Configurable number of backup files
-  - Detailed logging of all operations
-  - Log rotation to prevent disk space issues
-
-- **Docker Support**
-  - Containerized application
-  - Easy deployment
-  - Environment variable configuration
-  - Persistent log storage
-
-## Prerequisites
-
-- Python 3.9 or higher
-- Docker (for containerized deployment)
-- Contabo API credentials
-- SMTP server access for email notifications
-
-## Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-```env
-# Contabo API Credentials
-CLIENT_ID=your_client_id
-API_USER=your_api_user
-API_PASSWORD=your_api_password
-CLIENT_SECRET=your_client_secret
-
-# Email Configuration
-EMAIL_FROM=your-email@example.com
-ADMIN_EMAIL=admin@example.com
-SMTP_SERVER=smtp.example.com
-SMTP_PORT=587
-SMTP_USERNAME=your-smtp-username
-SMTP_PASSWORD=your-smtp-password
-
-# Logging Configuration
-LOG_MAX_MB=200          # Maximum log file size in MB
-LOG_BACKUP_COUNT=5      # Number of backup files to keep
+```bash
+cp .env.example .env
 ```
 
-## Installation
+Edit `.env` with your actual values:
 
-### Using Docker (Recommended)
+```bash
+# Contabo API Credentials
+CLIENT_ID=your_actual_client_id
+API_USER=your_actual_api_user
+API_PASSWORD=your_actual_api_password
+CLIENT_SECRET=your_actual_client_secret
 
-1. Build the Docker image:
+# Email Configuration
+ADMIN_EMAIL=your_actual_admin_email
+EMAIL_FROM=your_actual_from_email
+SMTP_SERVER=your_smtp_server
+SMTP_PORT=587
+SMTP_USERNAME=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+
+# Logging Configuration
+LOG_MAX_MB=200
+LOG_BACKUP_COUNT=5
+```
+
+### 2. Docker Deployment
+
+#### Manual Deployment
+Build the image:
 ```bash
 docker build -t contabo-snapshot-manager .
 ```
 
-2. Run the container:
+Run with environment variables:
 ```bash
 docker run -d \
-  --name contabo-snapshot \
-  -v $(pwd)/logs:/app/logs \
+  --env-file .env \
+  --name contabo-snapshots \
   contabo-snapshot-manager
 ```
 
-### Manual Installation
+#### Webhook-Based Deployment
+For automated deployments via git webhooks:
 
-1. Install required dependencies:
-```bash
-pip install -r requirements.txt
+1. **Set environment variables in your deployment platform:**
+   - GitHub Actions: Use repository secrets
+   - GitLab CI: Use CI/CD variables
+   - Docker Hub: Use build arguments (for non-sensitive data)
+   - CapRover: Use app secrets
+
+2. **Example GitHub Actions workflow:**
+```yaml
+name: Deploy to Server
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            cd /path/to/app
+            git pull
+            docker build -t contabo-snapshot-manager .
+            docker stop contabo-snapshots || true
+            docker rm contabo-snapshots || true
+            docker run -d \
+              -e CLIENT_ID="${{ secrets.CLIENT_ID }}" \
+              -e API_USER="${{ secrets.API_USER }}" \
+              -e API_PASSWORD="${{ secrets.API_PASSWORD }}" \
+              -e CLIENT_SECRET="${{ secrets.CLIENT_SECRET }}" \
+              -e ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}" \
+              -e EMAIL_FROM="${{ secrets.EMAIL_FROM }}" \
+              -e SMTP_SERVER="${{ secrets.SMTP_SERVER }}" \
+              -e SMTP_PORT="${{ secrets.SMTP_PORT }}" \
+              -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
+              -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
+              --name contabo-snapshots \
+              contabo-snapshot-manager
 ```
 
-2. Run the script:
-```bash
-python main_job.py
+3. **Example CapRover deployment:**
+```json
+{
+  "appName": "contabo-snapshots",
+  "imageName": "your-registry/contabo-snapshot-manager",
+  "envVars": [
+    {
+      "key": "CLIENT_ID",
+      "value": "your_client_id"
+    },
+    {
+      "key": "API_USER", 
+      "value": "your_api_user"
+    }
+    // ... other environment variables
+  ]
+}
 ```
 
-## Testing
+## Security Best Practices
 
-The project includes a comprehensive test suite that covers all functionality. The tests use Python's unittest framework and mock external dependencies to ensure reliable testing.
+1. **Never commit `.env` files** - They're already in `.gitignore`
+2. **Use secrets management** in production (Docker secrets, Kubernetes secrets, etc.)
+3. **Rotate credentials regularly**
+4. **Use least privilege API keys**
+5. **Monitor logs for suspicious activity**
+6. **For webhook deployments:**
+   - Store secrets in your deployment platform's secret management
+   - Never expose secrets in build logs
+   - Use encrypted secrets when possible
+   - Rotate deployment keys regularly
 
-### Running Tests
+## Features
 
-To run the test suite:
-```bash
-python test.py
-```
-
-### Test Coverage
-
-The test suite includes:
-
-1. **Logger Tests**
-   - Logger creation and configuration
-   - Log file creation and rotation
-   - Environment variable handling
-
-2. **API Tests**
-   - Access token retrieval
-   - Instance listing
-   - Snapshot operations (create, delete, fetch)
-   - Error handling
-
-3. **Email Tests**
-   - Email summary generation
-   - SMTP connection handling
-   - Email content verification
-
-4. **Integration Tests**
-   - Complete snapshot management workflow
-   - End-to-end process verification
-
-### Test Environment
-
-The tests:
-- Run in isolation
-- Mock all external API calls
-- Mock SMTP server
-- Clean up after themselves
-- Use a separate test configuration
-
-### Writing New Tests
-
-To add new tests:
-1. Add test methods to the `TestContaboSnapshotManager` class
-2. Use the `@patch` decorator to mock external dependencies
-3. Follow the existing test patterns
-4. Ensure proper cleanup in `tearDown`
-
-## Log Files
-
-Logs are stored in the `logs` directory:
-- Main log file: `logs/contabo_snapshot_manager.log`
-- Backup files: `logs/contabo_snapshot_manager.log.1`, `.2`, etc.
-- Cron job logs: `logs/cron.log`
-
-## Email Reports
-
-The system sends email reports after each run, including:
-- Total number of instances
-- Number of successful/failed snapshots
-- Detailed information for each instance
-- Timestamps and error messages (if any)
-
-## Docker Volume
-
-The Docker container uses a volume for logs:
-- Mounted at `/app/logs`
-- Persists between container restarts
-- Accessible from the host machine
-
-## Updating Configuration
-
-### With Docker
-
-1. Update the `.env` file
-2. Rebuild and restart the container:
-```bash
-docker stop contabo-snapshot
-docker rm contabo-snapshot
-docker build -t contabo-snapshot-manager .
-docker run -d --name contabo-snapshot -v $(pwd)/logs:/app/logs contabo-snapshot-manager
-```
-
-### Manual Update
-
-1. Update the `.env` file
-2. Restart the script
+- Automated snapshot creation every 2 minutes
+- Automatic cleanup of old snapshots when limit is reached
+- Email reporting with detailed summaries
+- Asia/Manila timezone support
+- Comprehensive logging with rotation
+- Docker containerization
 
 ## License
 
-This project is licensed under the GNU General Public License (GPL) v3.0.
-
-## Author
-
-Anthony Afetsrom <sirantho20@gmail.com>
+GNU General Public License (GPL) v3.0
