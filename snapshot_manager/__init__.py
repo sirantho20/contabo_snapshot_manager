@@ -1,0 +1,1 @@
+# This file makes snapshot_manager a Python package 

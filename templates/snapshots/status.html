@@ -1,0 +1,82 @@
+{% extends 'snapshots/base.html' %}
+
+{% block title %}Status - Contabo Snapshot Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Task Status</h2>
+        
+        <!-- Scheduled Tasks -->
+        <div class="card status-card">
+            <div class="card-header">
+                <h5>Scheduled Tasks</h5>
+            </div>
+            <div class="card-body">
+                {% if scheduled_tasks %}
+                    {% for task in scheduled_tasks %}
+                    <div class="task-status">
+                        <strong>{{ task.name }}</strong><br>
+                        <small class="text-muted">
+                            Next run: {{ task.next_run|default:"Not scheduled" }}<br>
+                            Schedule: {{ task.schedule_type }} every {{ task.hours }} hours<br>
+                            Function: {{ task.func }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No scheduled tasks found.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent Successes -->
+        <div class="card status-card">
+            <div class="card-header">
+                <h5>Recent Successful Executions</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_successes %}
+                    {% for success in recent_successes %}
+                    <div class="task-status">
+                        <strong class="text-success">✓ Success</strong><br>
+                        <small class="text-muted">
+                            Started: {{ success.started }}<br>
+                            Duration: {{ success.duration|floatformat:2 }}s<br>
+                            Function: {{ success.func }}
+                        </small>
+                    </div>
+                    {% if not forloop.last %}<hr>{% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No successful executions found.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent Failures -->
+        <div class="card status-card">
+            <div class="card-header">
+                <h5>Recent Failed Executions</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_failures %}
+                    {% for failure in recent_failures %}
+                    <div class="task-status">
+                        <strong class="text-danger">✗ Failed</strong><br>
+                        <small class="text-muted">
+                            Started: {{ failure.started }}<br>
+                            Error: {{ failure.error|truncatechars:100 }}<br>
+                            Function: {{ failure.func }}
+                        </small>
+                    </div>
+                    {% if not forloop.last %}<hr>{% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No failed executions found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

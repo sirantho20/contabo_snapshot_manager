@@ -1,0 +1,61 @@
+{% extends 'snapshots/base.html' %}
+
+{% block title %}Home - Contabo Snapshot Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h2>Contabo Snapshot Manager</h2>
+            </div>
+            <div class="card-body">
+                <p class="lead">
+                    Welcome to the Contabo Snapshot Manager. This application automatically manages 
+                    snapshots for your Contabo VPS instances.
+                </p>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card status-card">
+                            <div class="card-header">
+                                <h5>Quick Actions</h5>
+                            </div>
+                            <div class="card-body">
+                                <a href="{% url 'snapshots:status' %}" class="btn btn-primary">
+                                    View Status
+                                </a>
+                                <a href="/admin/" class="btn btn-secondary">
+                                    Admin Panel
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card status-card">
+                            <div class="card-header">
+                                <h5>Management Commands</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Run snapshot job manually:</p>
+                                <code>python manage.py run_snapshot_job</code>
+                                
+                                <hr>
+                                
+                                <p>Setup scheduled task (every 12 hours):</p>
+                                <code>python manage.py run_snapshot_job --schedule</code>
+                                
+                                <hr>
+                                
+                                <p>List scheduled tasks:</p>
+                                <code>python manage.py run_snapshot_job --list-schedules</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

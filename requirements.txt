@@ -1,4 +1,6 @@
-requests==2.31.0
-python-dotenv==1.1.0
-jinja2==3.1.2
+requests
+python-dotenv
+jinja2
 pytz
+django
+django-q2
