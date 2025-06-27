@@ -58,7 +58,7 @@ ENV DJANGO_SETTINGS_MODULE=snapshot_manager.settings
 VOLUME ["/app/logs"]
 
 # Expose ports for the Django server
-EXPOSE 8000
+EXPOSE 80
 
 # Start with the startup script
 CMD ["/app/startup.sh"]
