@@ -53,5 +53,5 @@ VOLUME ["/app/logs"]
 # Expose ports for the Django server
 EXPOSE 80
 
-# Start with the startup script
+# Start with the startup script 
 CMD ["/app/startup.sh"]
