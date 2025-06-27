@@ -16,6 +16,15 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    'https://contabo-snapshot-manager.app.braynesoftware.com',
+    'http://localhost',
+    'http://localhost:8000',
+    'https://localhost',
+    'https://localhost:8000',
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
