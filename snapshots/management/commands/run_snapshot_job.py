@@ -59,17 +59,19 @@ class Command(BaseCommand):
         """Setup the scheduled task to run every 12 hours."""
         # Check if the schedule already exists
         existing_schedule = Schedule.objects.filter(
-            func='snapshots.management.commands.run_snapshot_job'
+            func='django.core.management.call_command',
+            args=('run_snapshot_job',)
         ).first()
         
         if not existing_schedule:
             # Create a new schedule to run every 12 hours
             schedule(
-                'snapshots.management.commands.run_snapshot_job',
+                'django.core.management.call_command',
                 schedule_type=Schedule.HOURLY,
                 repeats=-1,  # Run indefinitely
                 hours=12,
-                name='Contabo Snapshot Management Job'
+                name='Contabo Snapshot Management Job',
+                args=('run_snapshot_job',)
             )
             self.stdout.write(
                 self.style.SUCCESS('Scheduled snapshot job created - will run every 12 hours')
@@ -82,7 +84,8 @@ class Command(BaseCommand):
     def list_scheduled_tasks(self):
         """List all scheduled snapshot tasks."""
         scheduled_tasks = Schedule.objects.filter(
-            func='snapshots.management.commands.run_snapshot_job'
+            func='django.core.management.call_command',
+            args=('run_snapshot_job',)
         )
         
         if scheduled_tasks:
