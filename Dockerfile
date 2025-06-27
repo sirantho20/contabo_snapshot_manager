@@ -39,9 +39,13 @@ echo "Setting up scheduled task..."\n\
 
 echo "Running initial snapshot job..."\n\
 
+echo "Creating log file..."\n\
+touch /app/logs/contabo_snapshot_manager.log\n\
 echo "Starting Supervisor with Django Q cluster and web server..."\n\
 # Start supervisor in background\n\
 supervisord -c /etc/supervisor/conf.d/supervisor.conf &\n\
+# Wait a moment for supervisor to start\n\
+sleep 3\n\
 # Stream logs to stdout\n\
 tail -f /app/logs/contabo_snapshot_manager.log' > /app/startup.sh && \
     chmod +x /app/startup.sh
@@ -56,5 +60,5 @@ VOLUME ["/app/logs"]
 # Expose ports for the Django server
 EXPOSE 80
 
-# Start with the startup script 
+# Start with the startup script
 CMD ["/app/startup.sh"]
