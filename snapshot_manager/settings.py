@@ -80,7 +80,7 @@ Q_CLUSTER = {
     'name': 'snapshot_manager',
     'workers': 1,
     'recycle': 500,
-    'timeout': 60,
+    'timeout': 300,
     'compress': True,
     'save_limit': 250,
     'queue_limit': 500,
