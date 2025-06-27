@@ -36,9 +36,9 @@ cd /app && python manage.py migrate\n\
 echo "Creating superuser..."\n\
 cd /app && python manage.py create_superuser\n\
 echo "Setting up scheduled task..."\n\
-cd /app && python manage.py run_snapshot_job --schedule\n\
+
 echo "Running initial snapshot job..."\n\
-cd /app && python manage.py run_snapshot_job\n\
+
 echo "Starting Supervisor with Django Q cluster and web server..."\n\
 # Start supervisor in background\n\
 supervisord -c /etc/supervisor/conf.d/supervisor.conf &\n\
