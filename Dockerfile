@@ -33,6 +33,8 @@ echo "Starting Contabo Snapshot Manager with Django Q..."\n\
 echo "SMTP_SERVER: $SMTP_SERVER"\n\
 echo "Running Django migrations..."\n\
 cd /app && python manage.py migrate\n\
+echo "Creating superuser..."\n\
+cd /app && python manage.py create_superuser\n\
 echo "Setting up scheduled task..."\n\
 cd /app && python manage.py run_snapshot_job --schedule\n\
 echo "Running initial snapshot job..."\n\
