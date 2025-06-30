@@ -31,6 +31,15 @@ RUN mkdir -p /app/logs /app/templates/email && \
 RUN echo '#!/bin/bash\n\
 echo "Starting Contabo Snapshot Manager with Django Q..."\n\
 echo "SMTP_SERVER: $SMTP_SERVER"\n\
+echo "Cleaning up any existing supervisor processes..."\n\
+pkill -f supervisord || true\n\
+pkill -f supervisor || true\n\
+echo "Removing supervisor PID files..."\n\
+rm -f /app/supervisord.pid\n\
+rm -f /tmp/supervisord.pid\n\
+rm -f /var/run/supervisord.pid\n\
+echo "Waiting for cleanup..."\n\
+sleep 3\n\
 echo "Running Django migrations..."\n\
 cd /app && python manage.py migrate\n\
 echo "Creating superuser..."\n\
@@ -39,12 +48,13 @@ echo "Setting up scheduled task..."\n\
 cd /app && python manage.py run_snapshot_job --schedule\n\
 echo "Creating log file..."\n\
 touch /app/logs/contabo_snapshot_manager.log\n\
-echo "Starting Supervisor with Django Q cluster and web server..."\n\
-# Start supervisor in background\n\
+echo "Starting fresh supervisor process..."\n\
 supervisord -c /etc/supervisor/conf.d/supervisor.conf &\n\
-# Wait a moment for supervisor to start\n\
-sleep 3\n\
-# Stream logs to stdout\n\
+echo "Waiting for supervisor to start..."\n\
+sleep 5\n\
+echo "Checking supervisor status..."\n\
+supervisorctl status\n\
+echo "Streaming logs to stdout..."\n\
 tail -f /app/logs/contabo_snapshot_manager.log' > /app/startup.sh && \
     chmod +x /app/startup.sh
 
