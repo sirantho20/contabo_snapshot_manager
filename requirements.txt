@@ -4,3 +4,5 @@ jinja2
 pytz
 django
 django-q2
+psycopg2-binary
+croniter

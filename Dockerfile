@@ -36,9 +36,7 @@ cd /app && python manage.py migrate\n\
 echo "Creating superuser..."\n\
 cd /app && python manage.py create_superuser\n\
 echo "Setting up scheduled task..."\n\
-
-echo "Running initial snapshot job..."\n\
-
+cd /app && python manage.py run_snapshot_job --schedule\n\
 echo "Creating log file..."\n\
 touch /app/logs/contabo_snapshot_manager.log\n\
 echo "Starting Supervisor with Django Q cluster and web server..."\n\

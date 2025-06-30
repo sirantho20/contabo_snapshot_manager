@@ -70,8 +70,12 @@ WSGI_APPLICATION = 'snapshot_manager.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'snapshot_manager',
+        'USER': 'snapshot_app_user',
+        'PASSWORD': '8chvlSGcWHoDYUaCar80Bp01w8ERJ6ZxF1WD18ku70TozFH4G8rrGFag6hN',
+        'HOST': 'captain.app.braynesoftware.com',
+        'PORT': '5434',
     }
 }
 
@@ -80,7 +84,7 @@ Q_CLUSTER = {
     'name': 'snapshot_manager',
     'workers': 1,
     'recycle': 500,
-    'timeout': 300,
+    'timeout': 600,
     'compress': True,
     'save_limit': 250,
     'queue_limit': 500,
