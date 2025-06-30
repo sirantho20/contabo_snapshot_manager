@@ -71,6 +71,7 @@ class Command(BaseCommand):
                 schedule_type=Schedule.CRON,
                 cron='0 0,12 * * *',
                 name='Contabo Snapshot Management Job',
+                q_options={'task_name': 'run_snapshot_job1'},
             )
             self.stdout.write(
                 self.style.SUCCESS('Scheduled snapshot job created - will run every 12 hours')
