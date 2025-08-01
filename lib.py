@@ -318,6 +318,20 @@ class ContaboSnapshotManager:
         Generates and sends a summary email of the snapshot operations.
         """
         try:
+            # Get SMTP settings from environment
+            smtp_server = os.getenv('SMTP_SERVER')
+            smtp_port = int(os.getenv('SMTP_PORT', 587))
+            smtp_username = os.getenv('SMTP_USERNAME')
+            smtp_password = os.getenv('SMTP_PASSWORD')
+            admin_email = os.getenv('ADMIN_EMAIL')
+            email_from = os.getenv('EMAIL_FROM')
+            
+            # Check if all required email configuration is present
+            if not all([smtp_server, smtp_username, smtp_password, admin_email, email_from]):
+                self.logger.warning("Email configuration incomplete. Skipping email summary.")
+                self.logger.warning(f"Missing: SMTP_SERVER={smtp_server}, SMTP_USERNAME={smtp_username}, SMTP_PASSWORD={'***' if smtp_password else 'None'}, ADMIN_EMAIL={admin_email}, EMAIL_FROM={email_from}")
+                return
+            
             # Load email template
             env = Environment(loader=FileSystemLoader('templates/email'))
             template = env.get_template('snapshot_summary.html')
@@ -340,25 +354,20 @@ class ContaboSnapshotManager:
             # Create message
             msg = MIMEMultipart('alternative')
             msg['Subject'] = f'Contabo Snapshot Summary - {self.get_current_time().strftime("%Y-%m-%d %H:%M")}'
-            msg['From'] = os.getenv('EMAIL_FROM')
-            msg['To'] = os.getenv('ADMIN_EMAIL')
+            msg['From'] = email_from
+            msg['To'] = admin_email
             
             # Attach HTML content
             msg.attach(MIMEText(html_content, 'html'))
             
-            # Get SMTP settings from environment
-            smtp_server = os.getenv('SMTP_SERVER')
-            smtp_port = int(os.getenv('SMTP_PORT', 587))
-            smtp_username = os.getenv('SMTP_USERNAME')
-            smtp_password = os.getenv('SMTP_PASSWORD')
-            
-            if not all([smtp_server, smtp_port, smtp_username, smtp_password]):
-                raise ValueError("Missing SMTP configuration. Please check your environment variables.", smtp_server, smtp_port, smtp_username, smtp_password)
-            
-            # Send email with proper connection handling
+            # Send email with timeout and proper connection handling
             self.logger.info(f"Connecting to SMTP server {smtp_server}:{smtp_port}")
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.set_debuglevel(1)  # Enable debug output
+            
+            import socket
+            socket.setdefaulttimeout(30)  # Set 30 second timeout
+            
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
+                server.set_debuglevel(0)  # Disable debug output to reduce noise
                 self.logger.info("Starting TLS connection")
                 server.starttls()
                 self.logger.info(f"Logging in as {smtp_username}")
@@ -369,6 +378,8 @@ class ContaboSnapshotManager:
                 
         except smtplib.SMTPException as e:
             self.logger.error(f"SMTP error while sending summary email: {str(e)}")
+        except socket.timeout:
+            self.logger.error("SMTP connection timed out")
         except ValueError as e:
             self.logger.error(f"Configuration error: {str(e)}")
         except Exception as e:

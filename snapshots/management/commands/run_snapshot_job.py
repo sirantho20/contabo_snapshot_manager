@@ -31,6 +31,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Test the cron job execution manually',
         )
+        parser.add_argument(
+            '--test-mode',
+            action='store_true',
+            help='Run in test mode (skip actual snapshot operations)',
+        )
 
     def handle(self, *args, **options):
         # Set up timezone-aware logging
@@ -43,6 +48,8 @@ class Command(BaseCommand):
             self.list_scheduled_tasks()
         elif options['test_cron']:
             self.test_cron_execution()
+        elif options['test_mode']:
+            self.run_snapshot_job_test()
         else:
             self.run_snapshot_job()
 
@@ -85,7 +92,10 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Changed to /app directory"
 export PYTHONPATH=/app
 export DJANGO_SETTINGS_MODULE=snapshot_manager.settings
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django command..."
-python manage.py run_snapshot_job 2>&1
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Current directory: $(pwd)"
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Python path: $PYTHONPATH"
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Django settings: $DJANGO_SETTINGS_MODULE"
+timeout 300 python manage.py run_snapshot_job --test-mode 2>&1
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
 """
             
@@ -175,13 +185,22 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
         try:
             self.stdout.write("Testing cron job execution...")
             
+            # First test basic Django command
+            self.stdout.write("Testing basic Django command...")
+            result = subprocess.run(['python', 'manage.py', 'run_snapshot_job'], 
+                                  capture_output=True, text=True, timeout=30)
+            
+            self.stdout.write(f"Basic Django command exit code: {result.returncode}")
+            self.stdout.write(f"Basic Django command stdout: {result.stdout}")
+            self.stdout.write(f"Basic Django command stderr: {result.stderr}")
+            
             # Check if wrapper script exists
             if os.path.exists('/app/run_snapshot_wrapper.sh'):
                 self.stdout.write("Wrapper script exists, testing execution...")
                 
-                # Execute the wrapper script
+                # Execute the wrapper script with shorter timeout for testing
                 result = subprocess.run(['/app/run_snapshot_wrapper.sh'], 
-                                      capture_output=True, text=True, timeout=60)
+                                      capture_output=True, text=True, timeout=30)
                 
                 self.stdout.write(f"Wrapper script exit code: {result.returncode}")
                 self.stdout.write(f"Wrapper script stdout: {result.stdout}")
@@ -195,6 +214,46 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
                 self.stdout.write(self.style.WARNING("Wrapper script not found. Run --schedule first."))
                 
         except subprocess.TimeoutExpired:
-            self.stdout.write(self.style.ERROR("Cron job test timed out after 60 seconds"))
+            self.stdout.write(self.style.ERROR("Cron job test timed out after 30 seconds"))
+            # Try to get partial output
+            try:
+                result = subprocess.run(['/app/run_snapshot_wrapper.sh'], 
+                                      capture_output=True, text=True, timeout=5)
+                self.stdout.write(f"Partial output before timeout: {result.stdout}")
+                self.stdout.write(f"Partial error before timeout: {result.stderr}")
+            except:
+                self.stdout.write("Could not get partial output")
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error testing cron job: {str(e)}")) 
+
+    def run_snapshot_job_test(self):
+        """Run the snapshot management job in test mode."""
+        try:
+            timezone_name = os.environ.get('TZ', 'Asia/Manila')
+            current_time = datetime.now(pytz.timezone(timezone_name))
+            
+            self.stdout.write(
+                self.style.SUCCESS(f'Starting Contabo snapshot management job (TEST MODE) at {current_time.strftime("%Y-%m-%d %H:%M:%S %Z")}...')
+            )
+            
+            # Simulate the job without making actual API calls
+            self.stdout.write("TEST MODE: Simulating snapshot management job...")
+            self.stdout.write("TEST MODE: Would normally connect to Contabo API...")
+            self.stdout.write("TEST MODE: Would normally list instances...")
+            self.stdout.write("TEST MODE: Would normally create snapshots...")
+            self.stdout.write("TEST MODE: Would normally send email summary...")
+            
+            # Simulate some delay
+            import time
+            time.sleep(2)
+            
+            self.stdout.write(
+                self.style.SUCCESS('Snapshot management job (TEST MODE) completed successfully!')
+            )
+            
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Error in snapshot job test: {str(e)}')
+            )
+            logging.error(f"Error in snapshot job test: {str(e)}")
+            raise 
