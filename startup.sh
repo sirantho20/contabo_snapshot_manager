@@ -48,12 +48,19 @@ echo ${TZ:-Asia/Manila} > /etc/timezone
 
 # Verify required commands exist
 log "Verifying required commands..."
-for cmd in python manage.py supervisord cron; do
+for cmd in python supervisord cron; do
     if ! command_exists "$cmd"; then
         log "ERROR: Required command '$cmd' not found"
         exit 1
     fi
 done
+
+# Verify required files exist
+log "Verifying required files..."
+if [ ! -f "manage.py" ]; then
+    log "ERROR: manage.py file not found"
+    exit 1
+fi
 
 # Create superuser if it doesn't exist
 log "Creating superuser..."
