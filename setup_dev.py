@@ -42,8 +42,8 @@ def main():
     print("  python manage.py runserver")
     print("\nTo run the snapshot job manually:")
     print("  python manage.py run_snapshot_job")
-    print("\nTo start the Django Q cluster:")
-    print("  python -m django_q.cluster")
+    print("\nTo check cron jobs:")
+    print("  crontab -l")
 
 if __name__ == "__main__":
     main() 

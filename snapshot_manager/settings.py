@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_q',
     'snapshots',
 ]
 
@@ -79,20 +78,6 @@ DATABASES = {
     }
 }
 
-# Django Q Configuration
-Q_CLUSTER = {
-    'name': 'snapshot_manager',
-    'workers': 1,
-    'recycle': 500,
-    'timeout': 600,
-    'compress': True,
-    'save_limit': 250,
-    'queue_limit': 500,
-    'cpu_affinity': 1,
-    'label': 'Django Q',
-    'orm': 'default',  # Use Django ORM instead of Redis
-}
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -111,7 +96,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Asia/Manila'
+TIME_ZONE = os.environ.get('TZ', 'Asia/Manila')
 USE_I18N = True
 USE_TZ = True
 
@@ -130,10 +115,12 @@ LOGGING = {
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S %Z',
         },
         'simple': {
-            'format': '{levelname} {message}',
+            'format': '{levelname} {asctime} {message}',
             'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S %Z',
         },
     },
     'handlers': {

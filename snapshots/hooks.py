@@ -1,16 +1,8 @@
 # snapshots/hooks.py
 import logging
-from django_q.models import Success, Failure
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
-
-def schedule_completed(task):
-    """Hook called when schedule completes"""
-    logger.info(f"Schedule completed: {task.func_name}")
-    
-    # Clear any running flags
-    cache.delete('snapshot_job_running')
 
 def prevent_duplicate_execution(func_name, *args, **kwargs):
     """Decorator to prevent duplicate task execution"""

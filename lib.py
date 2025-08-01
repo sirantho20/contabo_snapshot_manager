@@ -51,9 +51,10 @@ class ContaboSnapshotManager:
         # Setup logging
         self.logger = self.setup_logger()
 
-        # Set timezone to Asia/Manila
-        self.timezone = pytz.timezone('Asia/Manila')
-        self.logger.info(f"Timezone set to: {self.timezone}")
+        # Set timezone from environment variable with fallback to Asia/Manila
+        timezone_name = os.getenv('TZ', 'Asia/Manila')
+        self.timezone = pytz.timezone(timezone_name)
+        self.logger.info(f"Timezone set to: {self.timezone} ({timezone_name})")
 
         # Get environment variables (Docker env vars will take precedence)
         self.client_id = os.getenv("CLIENT_ID")
@@ -74,10 +75,10 @@ class ContaboSnapshotManager:
 
     def get_current_time(self):
         """
-        Gets the current time in Asia/Manila timezone.
+        Gets the current time in the configured timezone (from TZ environment variable).
         
         Returns:
-            datetime: Current time in Asia/Manila timezone.
+            datetime: Current time in the configured timezone.
         """
         return datetime.now(self.timezone)
 

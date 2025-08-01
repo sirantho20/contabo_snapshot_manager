@@ -10,17 +10,24 @@
         <!-- Scheduled Tasks -->
         <div class="card status-card">
             <div class="card-header">
-                <h5>Scheduled Tasks</h5>
+                <h5>Scheduled Tasks (Cron)</h5>
             </div>
             <div class="card-body">
+                <div class="task-status">
+                    <strong>Current Cron Schedule</strong><br>
+                    <small class="text-muted">
+                        Schedule: {{ cron_schedule }}<br>
+                        Environment Variable: CRON_SCHEDULE={{ cron_schedule }}
+                    </small>
+                </div>
+                <hr>
                 {% if scheduled_tasks %}
                     {% for task in scheduled_tasks %}
                     <div class="task-status">
-                        <strong>{{ task.name }}</strong><br>
+                        <strong>Cron Job</strong><br>
                         <small class="text-muted">
-                            Next run: {{ task.next_run|default:"Not scheduled" }}<br>
-                            Schedule: {{ task.schedule_type }} every {{ task.hours }} hours<br>
-                            Function: {{ task.func }}
+                            Schedule: {{ task }}<br>
+                            Runs according to the CRON_SCHEDULE environment variable
                         </small>
                     </div>
                     {% endfor %}
@@ -30,50 +37,23 @@
             </div>
         </div>
         
-        <!-- Recent Successes -->
+        <!-- Recent Executions -->
         <div class="card status-card">
             <div class="card-header">
-                <h5>Recent Successful Executions</h5>
+                <h5>Recent Executions (Docker Logs)</h5>
             </div>
             <div class="card-body">
-                {% if recent_successes %}
-                    {% for success in recent_successes %}
+                {% if recent_executions %}
+                    {% for execution in recent_executions %}
                     <div class="task-status">
-                        <strong class="text-success">✓ Success</strong><br>
                         <small class="text-muted">
-                            Started: {{ success.started }}<br>
-                            Duration: {{ success.duration|floatformat:2 }}s<br>
-                            Function: {{ success.func }}
+                            {{ execution }}
                         </small>
                     </div>
                     {% if not forloop.last %}<hr>{% endif %}
                     {% endfor %}
                 {% else %}
-                    <p class="text-muted">No successful executions found.</p>
-                {% endif %}
-            </div>
-        </div>
-        
-        <!-- Recent Failures -->
-        <div class="card status-card">
-            <div class="card-header">
-                <h5>Recent Failed Executions</h5>
-            </div>
-            <div class="card-body">
-                {% if recent_failures %}
-                    {% for failure in recent_failures %}
-                    <div class="task-status">
-                        <strong class="text-danger">✗ Failed</strong><br>
-                        <small class="text-muted">
-                            Started: {{ failure.started }}<br>
-                            Error: {{ failure.error|truncatechars:100 }}<br>
-                            Function: {{ failure.func }}
-                        </small>
-                    </div>
-                    {% if not forloop.last %}<hr>{% endif %}
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">No failed executions found.</p>
+                    <p class="text-muted">No recent executions found.</p>
                 {% endif %}
             </div>
         </div>

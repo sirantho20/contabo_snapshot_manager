@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from django_q.models import Schedule, Success, Failure
 from django.utils import timezone
 from datetime import timedelta
+import os
+import subprocess
+from pathlib import Path
 
 
 def home(request):
@@ -12,24 +14,33 @@ def home(request):
 
 def status(request):
     """Status page showing recent task executions."""
-    # Get recent successful and failed tasks
-    recent_successes = Success.objects.filter(
-        func='snapshots.management.commands.run_snapshot_job'
-    ).order_by('-started')[:10]
+    # Get cron logs - since logs are now streamed to stdout, we'll show a message
+    recent_executions = [
+        "Cron logs are now streamed to Docker stdout",
+        "Check 'docker logs <container_name>' to view recent executions",
+        "Or use 'docker logs -f <container_name>' to follow logs in real-time"
+    ]
     
-    recent_failures = Failure.objects.filter(
-        func='snapshots.management.commands.run_snapshot_job'
-    ).order_by('-started')[:10]
+    # Get scheduled tasks from crontab
+    scheduled_tasks = []
+    try:
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        if result.returncode == 0:
+            crontab_lines = result.stdout.strip().split('\n')
+            snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_job' in line]
+            scheduled_tasks = snapshot_jobs
+        else:
+            scheduled_tasks = ["No crontab found"]
+    except Exception as e:
+        scheduled_tasks = [f"Error reading crontab: {str(e)}"]
     
-    # Get scheduled tasks
-    scheduled_tasks = Schedule.objects.filter(
-        func='snapshots.management.commands.run_snapshot_job'
-    )
+    # Get current cron schedule from environment
+    cron_schedule = os.environ.get('CRON_SCHEDULE', '0 0,12 * * *')
     
     context = {
-        'recent_successes': recent_successes,
-        'recent_failures': recent_failures,
+        'recent_executions': recent_executions,
         'scheduled_tasks': scheduled_tasks,
+        'cron_schedule': cron_schedule,
     }
     
     return render(request, 'snapshots/status.html', context) 

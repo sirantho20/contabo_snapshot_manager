@@ -1,6 +1,6 @@
 # Contabo Snapshot Manager - Django Project
 
-This is a Django-based re-engineering of the Contabo Snapshot Manager, using django-q2 for task scheduling instead of cron jobs.
+This is a Django-based re-engineering of the Contabo Snapshot Manager, using cron for task scheduling.
 
 ## Project Structure
 
@@ -35,7 +35,7 @@ snapshot_manager/
 
 - **Django Management Command**: The snapshot job is now a Django management command
 - **Web Interface**: Simple web interface to monitor task status
-- **Django Q2 Scheduling**: Automatic scheduling every 12 hours using django-q2
+- **Cron Scheduling**: Automatic scheduling every 12 hours using cron
 - **Task Monitoring**: View recent successful and failed task executions
 - **Admin Interface**: Django admin for managing scheduled tasks
 
@@ -58,10 +58,7 @@ snapshot_manager/
    python manage.py runserver
    ```
 
-4. Start the Django Q cluster (in a separate terminal):
-   ```bash
-   python -m django_q.cluster
-   ```
+4. The cron daemon will automatically handle scheduled tasks (no separate process needed)
 
 ### Docker Setup
 
@@ -76,6 +73,8 @@ snapshot_manager/
      -p 8000:8000 \
      -v $(pwd)/logs:/app/logs \
      -e SMTP_SERVER=your-smtp-server \
+     -e TZ=Asia/Manila \
+     -e CRON_SCHEDULE="0 0,12 * * *" \
      snapshot-manager
    ```
 
@@ -107,23 +106,51 @@ snapshot_manager/
 ### Environment Variables
 
 - `SMTP_SERVER`: SMTP server for email notifications
+- `TZ`: Timezone for all logs and timestamps (default: Asia/Manila)
+- `CRON_SCHEDULE`: Cron schedule for snapshot jobs (default: "0 0,12 * * *" - every 12 hours)
 - `DJANGO_SETTINGS_MODULE`: Django settings module (set automatically)
 
 ## How It Works
 
-1. **Django Q2 Cluster**: Runs in the background to handle scheduled tasks
+1. **Cron Daemon**: Runs in the background to handle scheduled tasks
 2. **Management Command**: `run_snapshot_job` executes the snapshot management logic
-3. **Scheduling**: Tasks are scheduled to run every 12 hours automatically
-4. **Monitoring**: All task executions are logged and can be viewed via the web interface
-5. **Persistence**: Task history and schedules are stored in the Django database
+3. **Scheduling**: Tasks are scheduled according to the `CRON_SCHEDULE` environment variable
+4. **Monitoring**: All task executions are logged and streamed to Docker stdout
+5. **Logging**: All logs (Django, cron, supervisor) are streamed to Docker stdout for easy monitoring
+6. **Timezone**: All timestamps use the timezone specified by the `TZ` environment variable
 
-## Benefits Over Cron
+## Cron Schedule Examples
 
-- **Better Error Handling**: Failed tasks are logged and can be retried
-- **Web Interface**: Monitor task status without SSH access
-- **Flexible Scheduling**: Easy to modify schedules without restarting containers
-- **Task History**: Complete history of all task executions
-- **Django Integration**: Leverages Django's admin interface and ORM
+The `CRON_SCHEDULE` environment variable accepts standard cron expressions:
+
+```bash
+# Every 12 hours (default)
+-e CRON_SCHEDULE="0 0,12 * * *"
+
+# Every 6 hours
+-e CRON_SCHEDULE="0 */6 * * *"
+
+# Every day at 2 AM
+-e CRON_SCHEDULE="0 2 * * *"
+
+# Every Monday at 9 AM
+-e CRON_SCHEDULE="0 9 * * 1"
+
+# Every hour
+-e CRON_SCHEDULE="0 * * * *"
+
+# Every 30 minutes
+-e CRON_SCHEDULE="*/30 * * * *"
+```
+
+## Benefits of Cron
+
+- **System Standard**: Uses the standard Unix cron system
+- **Reliability**: Proven and stable scheduling mechanism
+- **Simple Configuration**: Easy to understand and modify
+- **System Integration**: Works with standard system tools
+- **Resource Efficient**: Lightweight compared to task queues
+- **Flexible Scheduling**: Customize schedule via environment variable
 
 ## Development
 
@@ -157,11 +184,11 @@ python manage.py migrate
 
 ## Troubleshooting
 
-### Django Q Cluster Not Starting
+### Cron Daemon Not Starting
 
-Check if the database is properly migrated:
+Check if cron is running:
 ```bash
-python manage.py migrate
+service cron status
 ```
 
 ### Tasks Not Running
@@ -171,9 +198,41 @@ Verify the scheduled task exists:
 python manage.py run_snapshot_job --list-schedules
 ```
 
+Check container logs:
+```bash
+docker logs <container_name>
+```
+
+Follow logs in real-time:
+```bash
+docker logs -f <container_name>
+```
+
 ### Web Interface Not Loading
 
 Ensure the Django development server is running:
 ```bash
 python manage.py runserver
+```
+
+### Timezone Issues
+
+If logs show incorrect timestamps, check the timezone setting:
+```bash
+# Check current timezone in container
+docker exec <container_name> date
+
+# Set custom timezone when running container
+docker run -d -e TZ=UTC snapshot-manager
+```
+
+### Cron Schedule Issues
+
+If tasks are not running at expected times, check the cron schedule:
+```bash
+# Check current cron schedule in container
+docker exec <container_name> crontab -l
+
+# Verify cron schedule format
+docker exec <container_name> python -c "import os; print('CRON_SCHEDULE:', os.environ.get('CRON_SCHEDULE', '0 0,12 * * *'))"
 ``` 
