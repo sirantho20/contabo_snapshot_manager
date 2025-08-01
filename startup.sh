@@ -70,6 +70,10 @@ python manage.py create_superuser
 log "Setting up scheduled task..."
 python manage.py run_snapshot_job --schedule
 
+# Test cron execution
+log "Testing cron job execution..."
+python manage.py run_snapshot_job --test-cron
+
 # Verify cron setup
 log "Verifying cron setup..."
 if crontab -l 2>/dev/null | grep -q "run_snapshot_job"; then

@@ -26,6 +26,11 @@ class Command(BaseCommand):
             action='store_true',
             help='List all scheduled snapshot jobs',
         )
+        parser.add_argument(
+            '--test-cron',
+            action='store_true',
+            help='Test the cron job execution manually',
+        )
 
     def handle(self, *args, **options):
         # Set up timezone-aware logging
@@ -36,6 +41,8 @@ class Command(BaseCommand):
             self.setup_scheduled_task()
         elif options['list_schedules']:
             self.list_scheduled_tasks()
+        elif options['test_cron']:
+            self.test_cron_execution()
         else:
             self.run_snapshot_job()
 
@@ -69,11 +76,32 @@ class Command(BaseCommand):
             # Get cron schedule from environment variable with fallback to default 12-hour schedule
             cron_schedule = os.environ.get('CRON_SCHEDULE', '0 0,12 * * *')
             
-            # Create the cron job command that redirects to stdout
-            cron_command = f"{cron_schedule} cd /app && python manage.py run_snapshot_job 2>&1"
+            # Create a wrapper script to ensure proper environment
+            wrapper_script = """#!/bin/bash
+set -e
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Starting snapshot job wrapper..."
+cd /app
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Changed to /app directory"
+export PYTHONPATH=/app
+export DJANGO_SETTINGS_MODULE=snapshot_manager.settings
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django command..."
+python manage.py run_snapshot_job 2>&1
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
+"""
+            
+            # Write the wrapper script
+            with open('/app/run_snapshot_wrapper.sh', 'w') as f:
+                f.write(wrapper_script)
+            
+            # Make it executable
+            subprocess.run(['chmod', '+x', '/app/run_snapshot_wrapper.sh'], check=True)
+            
+            # Create the cron job command using the wrapper script
+            cron_command = f"{cron_schedule} /app/run_snapshot_wrapper.sh"
             
             self.stdout.write(f"Setting up cron job with schedule: {cron_schedule}")
             self.stdout.write(f"Cron command: {cron_command}")
+            self.stdout.write(f"Wrapper script created: /app/run_snapshot_wrapper.sh")
             
             # Check if the cron job already exists
             result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
@@ -141,3 +169,32 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'Error listing cron jobs: {str(e)}')
             ) 
+
+    def test_cron_execution(self):
+        """Test the cron job execution manually."""
+        try:
+            self.stdout.write("Testing cron job execution...")
+            
+            # Check if wrapper script exists
+            if os.path.exists('/app/run_snapshot_wrapper.sh'):
+                self.stdout.write("Wrapper script exists, testing execution...")
+                
+                # Execute the wrapper script
+                result = subprocess.run(['/app/run_snapshot_wrapper.sh'], 
+                                      capture_output=True, text=True, timeout=60)
+                
+                self.stdout.write(f"Wrapper script exit code: {result.returncode}")
+                self.stdout.write(f"Wrapper script stdout: {result.stdout}")
+                self.stdout.write(f"Wrapper script stderr: {result.stderr}")
+                
+                if result.returncode == 0:
+                    self.stdout.write(self.style.SUCCESS("Cron job test successful!"))
+                else:
+                    self.stdout.write(self.style.ERROR("Cron job test failed!"))
+            else:
+                self.stdout.write(self.style.WARNING("Wrapper script not found. Run --schedule first."))
+                
+        except subprocess.TimeoutExpired:
+            self.stdout.write(self.style.ERROR("Cron job test timed out after 60 seconds"))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error testing cron job: {str(e)}")) 
