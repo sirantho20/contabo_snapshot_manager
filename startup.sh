@@ -76,7 +76,7 @@ python manage.py run_snapshot_job --test-cron
 
 # Verify cron setup
 log "Verifying cron setup..."
-if crontab -l 2>/dev/null | grep -q "run_snapshot_job"; then
+if crontab -l 2>/dev/null | grep -q "run_snapshot_wrapper.sh"; then
     log "Cron job successfully configured"
     log "Current crontab:"
     crontab -l 2>/dev/null | while read line; do

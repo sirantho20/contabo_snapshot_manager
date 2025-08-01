@@ -95,7 +95,7 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django comma
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Current directory: $(pwd)"
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Python path: $PYTHONPATH"
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Django settings: $DJANGO_SETTINGS_MODULE"
-timeout 300 python manage.py run_snapshot_job --test-mode 2>&1
+timeout 300 python manage.py run_snapshot_job 2>&1
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
 """
             
@@ -162,7 +162,7 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
             result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
             if result.returncode == 0:
                 crontab_lines = result.stdout.strip().split('\n')
-                snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_job' in line]
+                snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_wrapper.sh' in line]
                 
                 if snapshot_jobs:
                     self.stdout.write('Scheduled snapshot tasks:')

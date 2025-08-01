@@ -27,7 +27,7 @@ def status(request):
         result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
         if result.returncode == 0:
             crontab_lines = result.stdout.strip().split('\n')
-            snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_job' in line]
+            snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_wrapper.sh' in line]
             scheduled_tasks = snapshot_jobs
         else:
             scheduled_tasks = ["No crontab found"]
