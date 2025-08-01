@@ -36,6 +36,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Run in test mode (skip actual snapshot operations)',
         )
+        parser.add_argument(
+            '--use-test-cron',
+            action='store_true',
+            help='Switch cron to use test mode (for testing without API calls)',
+        )
 
     def handle(self, *args, **options):
         # Set up timezone-aware logging
@@ -50,6 +55,8 @@ class Command(BaseCommand):
             self.test_cron_execution()
         elif options['test_mode']:
             self.run_snapshot_job_test()
+        elif options['use_test_cron']:
+            self.switch_to_test_cron()
         else:
             self.run_snapshot_job()
 
@@ -99,12 +106,32 @@ timeout 300 python manage.py run_snapshot_job 2>&1
 echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
 """
             
-            # Write the wrapper script
+            # Create a test wrapper script for testing
+            test_wrapper_script = """#!/bin/bash
+set -e
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Starting snapshot job wrapper (TEST MODE)..."
+cd /app
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Changed to /app directory"
+export PYTHONPATH=/app
+export DJANGO_SETTINGS_MODULE=snapshot_manager.settings
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django command in test mode..."
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Current directory: $(pwd)"
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Python path: $PYTHONPATH"
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Django settings: $DJANGO_SETTINGS_MODULE"
+timeout 300 python manage.py run_snapshot_job --test-mode 2>&1
+echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper (TEST MODE) completed"
+"""
+            
+            # Write the wrapper scripts
             with open('/app/run_snapshot_wrapper.sh', 'w') as f:
                 f.write(wrapper_script)
             
-            # Make it executable
+            with open('/app/run_snapshot_test_wrapper.sh', 'w') as f:
+                f.write(test_wrapper_script)
+            
+            # Make them executable
             subprocess.run(['chmod', '+x', '/app/run_snapshot_wrapper.sh'], check=True)
+            subprocess.run(['chmod', '+x', '/app/run_snapshot_test_wrapper.sh'], check=True)
             
             # Create the cron job command using the wrapper script
             cron_command = f"{cron_schedule} /app/run_snapshot_wrapper.sh"
@@ -112,6 +139,7 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
             self.stdout.write(f"Setting up cron job with schedule: {cron_schedule}")
             self.stdout.write(f"Cron command: {cron_command}")
             self.stdout.write(f"Wrapper script created: /app/run_snapshot_wrapper.sh")
+            self.stdout.write(f"Test wrapper script created: /app/run_snapshot_test_wrapper.sh")
             
             # Check if the cron job already exists
             result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
@@ -185,9 +213,9 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
         try:
             self.stdout.write("Testing cron job execution...")
             
-            # First test basic Django command
-            self.stdout.write("Testing basic Django command...")
-            result = subprocess.run(['python', 'manage.py', 'run_snapshot_job'], 
+            # First test basic Django command in test mode
+            self.stdout.write("Testing basic Django command in test mode...")
+            result = subprocess.run(['python', 'manage.py', 'run_snapshot_job', '--test-mode'], 
                                   capture_output=True, text=True, timeout=30)
             
             self.stdout.write(f"Basic Django command exit code: {result.returncode}")
@@ -195,29 +223,29 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
             self.stdout.write(f"Basic Django command stderr: {result.stderr}")
             
             # Check if wrapper script exists
-            if os.path.exists('/app/run_snapshot_wrapper.sh'):
-                self.stdout.write("Wrapper script exists, testing execution...")
+            if os.path.exists('/app/run_snapshot_test_wrapper.sh'):
+                self.stdout.write("Test wrapper script exists, testing execution...")
                 
-                # Execute the wrapper script with shorter timeout for testing
-                result = subprocess.run(['/app/run_snapshot_wrapper.sh'], 
+                # Execute the test wrapper script with shorter timeout for testing
+                result = subprocess.run(['/app/run_snapshot_test_wrapper.sh'], 
                                       capture_output=True, text=True, timeout=30)
                 
-                self.stdout.write(f"Wrapper script exit code: {result.returncode}")
-                self.stdout.write(f"Wrapper script stdout: {result.stdout}")
-                self.stdout.write(f"Wrapper script stderr: {result.stderr}")
+                self.stdout.write(f"Test wrapper script exit code: {result.returncode}")
+                self.stdout.write(f"Test wrapper script stdout: {result.stdout}")
+                self.stdout.write(f"Test wrapper script stderr: {result.stderr}")
                 
                 if result.returncode == 0:
                     self.stdout.write(self.style.SUCCESS("Cron job test successful!"))
                 else:
                     self.stdout.write(self.style.ERROR("Cron job test failed!"))
             else:
-                self.stdout.write(self.style.WARNING("Wrapper script not found. Run --schedule first."))
+                self.stdout.write(self.style.WARNING("Test wrapper script not found. Run --schedule first."))
                 
         except subprocess.TimeoutExpired:
             self.stdout.write(self.style.ERROR("Cron job test timed out after 30 seconds"))
             # Try to get partial output
             try:
-                result = subprocess.run(['/app/run_snapshot_wrapper.sh'], 
+                result = subprocess.run(['/app/run_snapshot_test_wrapper.sh'], 
                                       capture_output=True, text=True, timeout=5)
                 self.stdout.write(f"Partial output before timeout: {result.stdout}")
                 self.stdout.write(f"Partial error before timeout: {result.stderr}")
@@ -257,3 +285,48 @@ echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
             )
             logging.error(f"Error in snapshot job test: {str(e)}")
             raise 
+
+    def switch_to_test_cron(self):
+        """Switch cron to use test mode for testing without API calls."""
+        try:
+            self.stdout.write("Switching cron to test mode...")
+            
+            # Get cron schedule from environment variable
+            cron_schedule = os.environ.get('CRON_SCHEDULE', '0 0,12 * * *')
+            
+            # Create the cron job command using the test wrapper script
+            cron_command = f"{cron_schedule} /app/run_snapshot_test_wrapper.sh"
+            
+            self.stdout.write(f"Setting up test cron job with schedule: {cron_schedule}")
+            self.stdout.write(f"Test cron command: {cron_command}")
+            
+            # Check if the cron job already exists
+            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+            existing_crontab = result.stdout if result.returncode == 0 else ""
+            
+            # Remove any existing snapshot jobs
+            if existing_crontab.strip():
+                lines = existing_crontab.strip().split('\n')
+                filtered_lines = [line for line in lines if 'run_snapshot_wrapper.sh' not in line]
+                if filtered_lines:
+                    new_crontab = '\n'.join(filtered_lines) + '\n' + cron_command + '\n'
+                else:
+                    new_crontab = cron_command + '\n'
+            else:
+                new_crontab = cron_command + '\n'
+            
+            # Write the new crontab
+            subprocess.run(['crontab', '-'], input=new_crontab, text=True, check=True)
+            
+            self.stdout.write(
+                self.style.SUCCESS(f'Switched to test cron job with schedule: {cron_schedule}')
+            )
+            
+        except subprocess.CalledProcessError as e:
+            self.stdout.write(
+                self.style.ERROR(f'Error switching to test cron: {str(e)}')
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Error switching to test cron: {str(e)}')
+            ) 

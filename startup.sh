@@ -70,6 +70,10 @@ python manage.py create_superuser
 log "Setting up scheduled task..."
 python manage.py run_snapshot_job --schedule
 
+# Switch to test cron mode for testing
+log "Switching to test cron mode for testing..."
+python manage.py run_snapshot_job --use-test-cron
+
 # Test cron execution
 log "Testing cron job execution..."
 python manage.py run_snapshot_job --test-cron
