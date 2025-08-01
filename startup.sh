@@ -74,8 +74,18 @@ python manage.py run_snapshot_job --schedule
 log "Verifying cron setup..."
 if crontab -l 2>/dev/null | grep -q "run_snapshot_job"; then
     log "Cron job successfully configured"
+    log "Current crontab:"
+    crontab -l 2>/dev/null | while read line; do
+        log "  $line"
+    done
 else
     log "WARNING: Cron job may not be properly configured"
+    log "Attempting to manually verify crontab..."
+    if crontab -l 2>/dev/null; then
+        log "Crontab exists but doesn't contain our job"
+    else
+        log "No crontab found"
+    fi
 fi
 
 # Start supervisor

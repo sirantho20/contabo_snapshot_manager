@@ -72,16 +72,25 @@ class Command(BaseCommand):
             # Create the cron job command that redirects to stdout
             cron_command = f"{cron_schedule} cd /app && python manage.py run_snapshot_job 2>&1"
             
+            self.stdout.write(f"Setting up cron job with schedule: {cron_schedule}")
+            self.stdout.write(f"Cron command: {cron_command}")
+            
             # Check if the cron job already exists
             result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
             existing_crontab = result.stdout if result.returncode == 0 else ""
             
+            self.stdout.write(f"Existing crontab: {repr(existing_crontab)}")
+            
             if cron_command not in existing_crontab:
-                # Add the new cron job
-                if existing_crontab:
-                    new_crontab = existing_crontab + "\n" + cron_command
+                # Add the new cron job with proper newline handling
+                if existing_crontab.strip():
+                    # If there's existing content, add newline + command + newline
+                    new_crontab = existing_crontab.rstrip() + "\n" + cron_command + "\n"
                 else:
-                    new_crontab = cron_command
+                    # If no existing content, just add command + newline
+                    new_crontab = cron_command + "\n"
+                
+                self.stdout.write(f"New crontab content: {repr(new_crontab)}")
                 
                 # Write the new crontab
                 subprocess.run(['crontab', '-'], input=new_crontab, text=True, check=True)
@@ -97,6 +106,12 @@ class Command(BaseCommand):
         except subprocess.CalledProcessError as e:
             self.stdout.write(
                 self.style.ERROR(f'Error setting up cron job: {str(e)}')
+            )
+            self.stdout.write(
+                self.style.ERROR(f'Command output: {e.stdout if e.stdout else "No output"}')
+            )
+            self.stdout.write(
+                self.style.ERROR(f'Command error: {e.stderr if e.stderr else "No error output"}')
             )
         except Exception as e:
             self.stdout.write(
