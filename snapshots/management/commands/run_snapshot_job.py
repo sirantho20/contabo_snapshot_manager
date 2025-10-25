@@ -2,14 +2,16 @@ from django.core.management.base import BaseCommand
 import logging
 import sys
 import os
-import subprocess
 from datetime import datetime
 import pytz
+from django_q.tasks import async_task
+from django_q.models import Schedule
 
 # Add the parent directory to the path so we can import lib
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
 from lib import ContaboSnapshotManager
+from snapshots.tasks import run_snapshot_job, setup_scheduled_task, run_test_job
 
 
 class Command(BaseCommand):
@@ -19,7 +21,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--schedule',
             action='store_true',
-            help='Setup the scheduled task to run every 12 hours using cron',
+            help='Setup the scheduled task to run every 6 hours using django-q',
         )
         parser.add_argument(
             '--list-schedules',
@@ -27,19 +29,14 @@ class Command(BaseCommand):
             help='List all scheduled snapshot jobs',
         )
         parser.add_argument(
-            '--test-cron',
-            action='store_true',
-            help='Test the cron job execution manually',
-        )
-        parser.add_argument(
             '--test-mode',
             action='store_true',
             help='Run in test mode (skip actual snapshot operations)',
         )
         parser.add_argument(
-            '--use-test-cron',
+            '--async',
             action='store_true',
-            help='Switch cron to use test mode (for testing without API calls)',
+            help='Run the job asynchronously using django-q',
         )
 
     def handle(self, *args, **options):
@@ -51,17 +48,15 @@ class Command(BaseCommand):
             self.setup_scheduled_task()
         elif options['list_schedules']:
             self.list_scheduled_tasks()
-        elif options['test_cron']:
-            self.test_cron_execution()
         elif options['test_mode']:
-            self.run_snapshot_job_test()
-        elif options['use_test_cron']:
-            self.switch_to_test_cron()
+            self.run_test_job()
+        elif options['async']:
+            self.run_async_job()
         else:
             self.run_snapshot_job()
 
     def run_snapshot_job(self):
-        """Run the snapshot management job."""
+        """Run the snapshot management job synchronously."""
         try:
             timezone_name = os.environ.get('TZ', 'Asia/Manila')
             current_time = datetime.now(pytz.timezone(timezone_name))
@@ -85,248 +80,52 @@ class Command(BaseCommand):
             raise
 
     def setup_scheduled_task(self):
-        """Setup the scheduled task using cron schedule from environment variable."""
+        """Setup the scheduled task using django-q."""
         try:
-            # Get cron schedule from environment variable with fallback to default 12-hour schedule
-            cron_schedule = os.environ.get('CRON_SCHEDULE', '0 0,12 * * *')
-            
-            # Create a wrapper script to ensure proper environment
-            wrapper_script = """#!/bin/bash
-set -e
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Starting snapshot job wrapper..."
-cd /app
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Changed to /app directory"
-export PYTHONPATH=/app
-export DJANGO_SETTINGS_MODULE=snapshot_manager.settings
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django command..."
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Current directory: $(pwd)"
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Python path: $PYTHONPATH"
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Django settings: $DJANGO_SETTINGS_MODULE"
-timeout 300 python manage.py run_snapshot_job 2>&1
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper completed"
-"""
-            
-            # Create a test wrapper script for testing
-            test_wrapper_script = """#!/bin/bash
-set -e
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Starting snapshot job wrapper (TEST MODE)..."
-cd /app
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Changed to /app directory"
-export PYTHONPATH=/app
-export DJANGO_SETTINGS_MODULE=snapshot_manager.settings
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Environment set up, running Django command in test mode..."
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Current directory: $(pwd)"
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Python path: $PYTHONPATH"
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Django settings: $DJANGO_SETTINGS_MODULE"
-timeout 300 python manage.py run_snapshot_job --test-mode 2>&1
-echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] Snapshot job wrapper (TEST MODE) completed"
-"""
-            
-            # Write the wrapper scripts
-            with open('/app/run_snapshot_wrapper.sh', 'w') as f:
-                f.write(wrapper_script)
-            
-            with open('/app/run_snapshot_test_wrapper.sh', 'w') as f:
-                f.write(test_wrapper_script)
-            
-            # Make them executable
-            subprocess.run(['chmod', '+x', '/app/run_snapshot_wrapper.sh'], check=True)
-            subprocess.run(['chmod', '+x', '/app/run_snapshot_test_wrapper.sh'], check=True)
-            
-            # Create the cron job command using the wrapper script
-            cron_command = f"{cron_schedule} /app/run_snapshot_wrapper.sh"
-            
-            self.stdout.write(f"Setting up cron job with schedule: {cron_schedule}")
-            self.stdout.write(f"Cron command: {cron_command}")
-            self.stdout.write(f"Wrapper script created: /app/run_snapshot_wrapper.sh")
-            self.stdout.write(f"Test wrapper script created: /app/run_snapshot_test_wrapper.sh")
-            
-            # Check if the cron job already exists
-            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-            existing_crontab = result.stdout if result.returncode == 0 else ""
-            
-            self.stdout.write(f"Existing crontab: {repr(existing_crontab)}")
-            
-            if cron_command not in existing_crontab:
-                # Add the new cron job with proper newline handling
-                if existing_crontab.strip():
-                    # If there's existing content, add newline + command + newline
-                    new_crontab = existing_crontab.rstrip() + "\n" + cron_command + "\n"
-                else:
-                    # If no existing content, just add command + newline
-                    new_crontab = cron_command + "\n"
-                
-                self.stdout.write(f"New crontab content: {repr(new_crontab)}")
-                
-                # Write the new crontab
-                subprocess.run(['crontab', '-'], input=new_crontab, text=True, check=True)
-                
-                self.stdout.write(
-                    self.style.SUCCESS(f'Scheduled snapshot job created with schedule: {cron_schedule}')
-                )
-            else:
-                self.stdout.write(
-                    self.style.WARNING('Scheduled snapshot job already exists')
-                )
-                
-        except subprocess.CalledProcessError as e:
+            result = setup_scheduled_task()
             self.stdout.write(
-                self.style.ERROR(f'Error setting up cron job: {str(e)}')
-            )
-            self.stdout.write(
-                self.style.ERROR(f'Command output: {e.stdout if e.stdout else "No output"}')
-            )
-            self.stdout.write(
-                self.style.ERROR(f'Command error: {e.stderr if e.stderr else "No error output"}')
+                self.style.SUCCESS(f'Django-Q scheduled task setup: {result}')
             )
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error setting up cron job: {str(e)}')
+                self.style.ERROR(f'Error setting up scheduled task: {str(e)}')
             )
 
     def list_scheduled_tasks(self):
         """List all scheduled snapshot tasks."""
         try:
-            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-            if result.returncode == 0:
-                crontab_lines = result.stdout.strip().split('\n')
-                snapshot_jobs = [line for line in crontab_lines if 'run_snapshot_wrapper.sh' in line]
-                
-                if snapshot_jobs:
-                    self.stdout.write('Scheduled snapshot tasks:')
-                    for job in snapshot_jobs:
-                        self.stdout.write(f'  - {job}')
-                else:
-                    self.stdout.write('No scheduled snapshot tasks found.')
+            schedules = Schedule.objects.filter(func='snapshots.tasks.run_snapshot_job')
+            if schedules.exists():
+                self.stdout.write('Scheduled snapshot tasks:')
+                for schedule in schedules:
+                    self.stdout.write(f'  - {schedule.name}: {schedule.cron} (Next run: {schedule.next_run})')
             else:
-                self.stdout.write('No crontab found.')
-                
-        except subprocess.CalledProcessError:
-            self.stdout.write('No crontab found.')
+                self.stdout.write('No scheduled snapshot tasks found.')
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error listing cron jobs: {str(e)}')
-            ) 
+                self.style.ERROR(f'Error listing scheduled tasks: {str(e)}')
+            )
 
-    def test_cron_execution(self):
-        """Test the cron job execution manually."""
+    def run_test_job(self):
+        """Run the test job synchronously."""
         try:
-            self.stdout.write("Testing cron job execution...")
-            
-            # First test basic Django command in test mode
-            self.stdout.write("Testing basic Django command in test mode...")
-            result = subprocess.run(['python', 'manage.py', 'run_snapshot_job', '--test-mode'], 
-                                  capture_output=True, text=True, timeout=30)
-            
-            self.stdout.write(f"Basic Django command exit code: {result.returncode}")
-            self.stdout.write(f"Basic Django command stdout: {result.stdout}")
-            self.stdout.write(f"Basic Django command stderr: {result.stderr}")
-            
-            # Check if wrapper script exists
-            if os.path.exists('/app/run_snapshot_test_wrapper.sh'):
-                self.stdout.write("Test wrapper script exists, testing execution...")
-                
-                # Execute the test wrapper script with shorter timeout for testing
-                result = subprocess.run(['/app/run_snapshot_test_wrapper.sh'], 
-                                      capture_output=True, text=True, timeout=30)
-                
-                self.stdout.write(f"Test wrapper script exit code: {result.returncode}")
-                self.stdout.write(f"Test wrapper script stdout: {result.stdout}")
-                self.stdout.write(f"Test wrapper script stderr: {result.stderr}")
-                
-                if result.returncode == 0:
-                    self.stdout.write(self.style.SUCCESS("Cron job test successful!"))
-                else:
-                    self.stdout.write(self.style.ERROR("Cron job test failed!"))
-            else:
-                self.stdout.write(self.style.WARNING("Test wrapper script not found. Run --schedule first."))
-                
-        except subprocess.TimeoutExpired:
-            self.stdout.write(self.style.ERROR("Cron job test timed out after 30 seconds"))
-            # Try to get partial output
-            try:
-                result = subprocess.run(['/app/run_snapshot_test_wrapper.sh'], 
-                                      capture_output=True, text=True, timeout=5)
-                self.stdout.write(f"Partial output before timeout: {result.stdout}")
-                self.stdout.write(f"Partial error before timeout: {result.stderr}")
-            except:
-                self.stdout.write("Could not get partial output")
+            result = run_test_job()
+            self.stdout.write(
+                self.style.SUCCESS(f'Test job result: {result}')
+            )
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error testing cron job: {str(e)}")) 
+            self.stdout.write(
+                self.style.ERROR(f'Error in test job: {str(e)}')
+            )
 
-    def run_snapshot_job_test(self):
-        """Run the snapshot management job in test mode."""
+    def run_async_job(self):
+        """Run the snapshot job asynchronously using django-q."""
         try:
-            timezone_name = os.environ.get('TZ', 'Asia/Manila')
-            current_time = datetime.now(pytz.timezone(timezone_name))
-            
+            task_id = async_task('snapshots.tasks.run_snapshot_job')
             self.stdout.write(
-                self.style.SUCCESS(f'Starting Contabo snapshot management job (TEST MODE) at {current_time.strftime("%Y-%m-%d %H:%M:%S %Z")}...')
-            )
-            
-            # Simulate the job without making actual API calls
-            self.stdout.write("TEST MODE: Simulating snapshot management job...")
-            self.stdout.write("TEST MODE: Would normally connect to Contabo API...")
-            self.stdout.write("TEST MODE: Would normally list instances...")
-            self.stdout.write("TEST MODE: Would normally create snapshots...")
-            self.stdout.write("TEST MODE: Would normally send email summary...")
-            
-            # Simulate some delay
-            import time
-            time.sleep(2)
-            
-            self.stdout.write(
-                self.style.SUCCESS('Snapshot management job (TEST MODE) completed successfully!')
-            )
-            
-        except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f'Error in snapshot job test: {str(e)}')
-            )
-            logging.error(f"Error in snapshot job test: {str(e)}")
-            raise 
-
-    def switch_to_test_cron(self):
-        """Switch cron to use test mode for testing without API calls."""
-        try:
-            self.stdout.write("Switching cron to test mode...")
-            
-            # Get cron schedule from environment variable
-            cron_schedule = os.environ.get('CRON_SCHEDULE', '0 0,12 * * *')
-            
-            # Create the cron job command using the test wrapper script
-            cron_command = f"{cron_schedule} /app/run_snapshot_test_wrapper.sh"
-            
-            self.stdout.write(f"Setting up test cron job with schedule: {cron_schedule}")
-            self.stdout.write(f"Test cron command: {cron_command}")
-            
-            # Check if the cron job already exists
-            result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-            existing_crontab = result.stdout if result.returncode == 0 else ""
-            
-            # Remove any existing snapshot jobs
-            if existing_crontab.strip():
-                lines = existing_crontab.strip().split('\n')
-                filtered_lines = [line for line in lines if 'run_snapshot_wrapper.sh' not in line]
-                if filtered_lines:
-                    new_crontab = '\n'.join(filtered_lines) + '\n' + cron_command + '\n'
-                else:
-                    new_crontab = cron_command + '\n'
-            else:
-                new_crontab = cron_command + '\n'
-            
-            # Write the new crontab
-            subprocess.run(['crontab', '-'], input=new_crontab, text=True, check=True)
-            
-            self.stdout.write(
-                self.style.SUCCESS(f'Switched to test cron job with schedule: {cron_schedule}')
-            )
-            
-        except subprocess.CalledProcessError as e:
-            self.stdout.write(
-                self.style.ERROR(f'Error switching to test cron: {str(e)}')
+                self.style.SUCCESS(f'Snapshot job queued with task ID: {task_id}')
             )
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error switching to test cron: {str(e)}')
+                self.style.ERROR(f'Error queuing async job: {str(e)}')
             ) 

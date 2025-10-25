@@ -83,34 +83,13 @@ class ContaboSnapshotManager:
         return datetime.now(self.timezone)
 
     def setup_logger(self):
-        """Sets up the logger with rotation.""" 
-        log_dir = "logs"
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        """Sets up the logger to output to stdout for Docker logging.""" 
+        import sys
 
-        log_file = os.path.join(log_dir, "contabo_snapshot_manager.log")
-
-        # Get log configuration from environment variables with defaults
-        # Convert MB to bytes (1MB = 1024 * 1024 bytes)
-        max_mb = int(os.getenv('LOG_MAX_MB', 200))  # Default 200MB
-        max_bytes = max_mb * 1024 * 1024
-        backup_count = int(os.getenv('LOG_BACKUP_COUNT', 5))  # Default 5 backup files
-
-        # Create a rotating file handler for logs
-        handler = RotatingFileHandler(
-            log_file,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding='utf-8'
-        )
-        handler.setLevel(logging.INFO)
-
-        # Create a formatter and attach it to the handler
-        # Include filename, line number, and function name in the log format
+        # Create formatter
         formatter = logging.Formatter(
             '%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d - %(funcName)s()] - %(message)s'
         )
-        handler.setFormatter(formatter)
 
         # Get the root logger
         logger = logging.getLogger()
@@ -119,11 +98,15 @@ class ContaboSnapshotManager:
         # Remove any existing handlers to avoid duplicate logs
         for existing_handler in logger.handlers[:]:
             logger.removeHandler(existing_handler)
-            
-        logger.addHandler(handler)
+
+        # Create stdout handler (for Docker logs)
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setLevel(logging.INFO)
+        stdout_handler.setFormatter(formatter)
+        logger.addHandler(stdout_handler)
 
         # Log the current log configuration
-        logger.info(f"Logging configured with max file size: {max_mb}MB and {backup_count} backup files")
+        logger.info("Logging configured: stdout only (Docker handles rotation)")
 
         return logger
 

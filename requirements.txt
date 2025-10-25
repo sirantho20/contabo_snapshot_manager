@@ -1,7 +1,7 @@
+Django
+django-q2
+croniter
 requests
 python-dotenv
 jinja2
 pytz
-django
-psycopg2-binary
-croniter

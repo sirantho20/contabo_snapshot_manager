@@ -6,96 +6,45 @@ log() {
     echo "[$(date +"%Y-%m-%d %H:%M:%S %Z")] $1"
 }
 
-# Function to check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Function to wait for a service to be ready
-wait_for_service() {
-    local service_name="$1"
-    local max_attempts="${2:-30}"
-    local attempt=1
-    
-    log "Waiting for $service_name to be ready..."
-    while [ $attempt -le $max_attempts ]; do
-        if command_exists "$service_name" && "$service_name" --version >/dev/null 2>&1; then
-            log "$service_name is ready"
-            return 0
-        fi
-        log "Attempt $attempt/$max_attempts: $service_name not ready yet..."
-        sleep 2
-        ((attempt++))
-    done
-    
-    log "ERROR: $service_name failed to start after $max_attempts attempts"
-    return 1
-}
-
 # Display configuration
-log "Starting Contabo Snapshot Manager with Cron..."
+log "Starting Contabo Snapshot Manager with Django-Q..."
 log "Configuration:"
 log "  SMTP_SERVER: ${SMTP_SERVER:-not set}"
 log "  TZ: ${TZ:-Asia/Manila}"
-log "  CRON_SCHEDULE: ${CRON_SCHEDULE:-0 0,12 * * *}"
 log "  LOG_MAX_MB: ${LOG_MAX_MB:-200}"
 log "  LOG_BACKUP_COUNT: ${LOG_BACKUP_COUNT:-5}"
 
-# Set timezone
-log "Setting timezone to ${TZ:-Asia/Manila}..."
-ln -snf /usr/share/zoneinfo/${TZ:-Asia/Manila} /etc/localtime
-echo ${TZ:-Asia/Manila} > /etc/timezone
+# Run Django migrations
+log "Running Django migrations..."
+python manage.py migrate --noinput
 
-# Verify required commands exist
-log "Verifying required commands..."
-for cmd in python supervisord cron; do
-    if ! command_exists "$cmd"; then
-        log "ERROR: Required command '$cmd' not found"
-        exit 1
-    fi
-done
-
-# Verify required files exist
-log "Verifying required files..."
-if [ ! -f "manage.py" ]; then
-    log "ERROR: manage.py file not found"
-    exit 1
-fi
+# Collect static files
+log "Collecting static files..."
+python manage.py collectstatic --noinput --clear
 
 # Create superuser if it doesn't exist
 log "Creating superuser..."
 python manage.py create_superuser
 
-# Setup cron schedule
-log "Setting up scheduled task..."
-python manage.py run_snapshot_job --schedule
+# Setup django-q scheduled task
+log "Setting up scheduled task (every 6 hours)..."
+python manage.py setup_schedule --hours 6
 
-# Switch to test cron mode for testing
-log "Switching to test cron mode for testing..."
-python manage.py run_snapshot_job --use-test-cron
+# List scheduled tasks
+log "Listing scheduled tasks..."
+python manage.py list_schedules
 
-# Test cron execution
-log "Testing cron job execution..."
-python manage.py run_snapshot_job --test-cron
+# Run initial test job
+log "Running initial test job..."
+python manage.py run_snapshot_job --test-mode
 
-# Verify cron setup
-log "Verifying cron setup..."
-if crontab -l 2>/dev/null | grep -q "run_snapshot_wrapper.sh"; then
-    log "Cron job successfully configured"
-    log "Current crontab:"
-    crontab -l 2>/dev/null | while read line; do
-        log "  $line"
-    done
-else
-    log "WARNING: Cron job may not be properly configured"
-    log "Attempting to manually verify crontab..."
-    if crontab -l 2>/dev/null; then
-        log "Crontab exists but doesn't contain our job"
-    else
-        log "No crontab found"
-    fi
-fi
+# Start Django-Q cluster in background
+log "Starting Django-Q cluster..."
+python manage.py qcluster &
 
-# Start supervisor
-log "Starting supervisor..."
-exec supervisord -c /etc/supervisor/conf.d/supervisor.conf 
+# Wait a moment for qcluster to start
+sleep 3
+
+# Start Django development server
+log "Starting Django server on port 8000..."
+exec python manage.py runserver 0.0.0.0:8000 

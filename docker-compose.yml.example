@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  contabo-snapshot-manager:
+    image: contabo-snapshot-manager
+    container_name: contabo-snapshot-manager
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Contabo API Credentials (Required)
+      CLIENT_ID: your_contabo_client_id
+      CLIENT_SECRET: your_contabo_client_secret
+      API_USER: your_contabo_username
+      API_PASSWORD: your_contabo_password
+      
+      # Email Configuration (Required)
+      ADMIN_EMAIL: admin@example.com
+      EMAIL_FROM: noreply@example.com
+      SMTP_SERVER: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USERNAME: your_smtp_username@gmail.com
+      SMTP_PASSWORD: your_smtp_app_password
+      
+      # Optional Configuration
+      TZ: Asia/Manila
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: your_django_secret_key_here
+      DJANGO_ALLOWED_HOSTS: "*"
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "run_snapshot_job", "--test-mode"]
+      interval: 30m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
