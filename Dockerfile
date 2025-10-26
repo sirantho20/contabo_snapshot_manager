@@ -22,6 +22,9 @@ COPY snapshot_manager/ snapshot_manager/
 COPY snapshots/ snapshots/
 COPY templates/ templates/
 
+# Create staticfiles directory
+RUN mkdir -p staticfiles
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=snapshot_manager.settings
