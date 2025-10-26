@@ -25,6 +25,12 @@ COPY templates/ templates/
 # Create staticfiles directory
 RUN mkdir -p staticfiles
 
+# Create data directory for persistent database
+RUN mkdir -p data
+
+# Set proper permissions for data directory
+RUN chmod 755 data
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=snapshot_manager.settings

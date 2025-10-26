@@ -6,3 +6,4 @@ python-dotenv
 jinja2
 pytz
 whitenoise
+psycopg2-binary
